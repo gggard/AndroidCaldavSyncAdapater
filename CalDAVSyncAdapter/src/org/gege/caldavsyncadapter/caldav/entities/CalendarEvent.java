@@ -164,7 +164,7 @@ DateTime endDate = null;
 		DtStart dtStart = (DtStart) calendarComponent.getProperty("DTSTART");
 		
 		
-		if (dtStart != null) {
+		if ((dtStart != null) && (dtStart.getTimeZone() != null)) {
 			return dtStart.getTimeZone().getID();
 		} else {
 			return "GMT";

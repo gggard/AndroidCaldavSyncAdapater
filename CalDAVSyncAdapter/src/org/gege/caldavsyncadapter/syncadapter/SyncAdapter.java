@@ -120,6 +120,7 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 			}
 		} catch (Exception e) {
 			Log.e(TAG, "Updating calendar exception "+e.getClass().getName(), e);
+			throw new RuntimeException(e);
 		}
 		
 		

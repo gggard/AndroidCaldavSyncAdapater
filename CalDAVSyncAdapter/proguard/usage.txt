@@ -3040,4 +3040,4 @@ org.gege.caldavsyncadapter.syncadapter.SyncAdapter:
     private static final int PROJECTION_OWNER_ACCOUNT_INDEX
     private static final boolean FORCE_SYNCHRONIZE
     private static final boolean DROP_CALENDAR_EVENTS
-    211:220:private void dropAllEvents(android.accounts.Account,android.content.ContentProviderClient,android.net.Uri)
+    212:221:private void dropAllEvents(android.accounts.Account,android.content.ContentProviderClient,android.net.Uri)
