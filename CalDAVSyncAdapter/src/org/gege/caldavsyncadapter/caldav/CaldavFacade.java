@@ -6,6 +6,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.UnsupportedEncodingException;
 import java.net.MalformedURLException;
+import java.net.ResponseCache;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
@@ -20,6 +21,7 @@ import javax.xml.parsers.ParserConfigurationException;
 import org.apache.http.HttpHost;
 import org.apache.http.HttpResponse;
 import org.apache.http.HttpVersion;
+import org.apache.http.StatusLine;
 import org.apache.http.auth.AuthScope;
 import org.apache.http.auth.UsernamePasswordCredentials;
 import org.apache.http.client.ClientProtocolException;
@@ -65,7 +67,7 @@ public class CaldavFacade {
 
 	private static HttpHost targetHost;
 	
-	protected HttpClient getHttpClient() throws Exception {
+	protected HttpClient getHttpClient()  {
 
 
 
@@ -85,7 +87,7 @@ public class CaldavFacade {
 	       return client;
 	}
 	
-	public CaldavFacade(String mUser, String mPassword, String mURL)  throws GeneralSecurityException, Exception {
+	public CaldavFacade(String mUser, String mPassword, String mURL) throws MalformedURLException  {
 		url = new URL(mURL);
 		
 		httpClient = getHttpClient();
@@ -125,13 +127,78 @@ public class CaldavFacade {
       
 	}
 	
-	public void testConnection() throws MalformedURLException {
+	public enum TestConnectionResult {
+		WRONG_CREDENTIAL,
+		WRONG_URL,
+		WRONG_SERVER_STATUS,
+		WRONG_ANSWER, SUCCESS
+	}
+	
+	public TestConnectionResult testConnection() throws ParserConfigurationException, UnsupportedEncodingException, SAXException, IOException, URISyntaxException {
 		
 		Log.d (TAG, "start testConnection ");
 		
-		 
+		String requestBody = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" +
+				"<D:propfind xmlns:D=\"DAV:\">" +
+				"<D:prop>" +
+				"<D:resourcetype/>" +
+				"</D:prop>" +
+				"</D:propfind>";
 		
-		 Log.d (TAG, "endConnection ");
+		HttpPropFind request = null;
+		
+		request = new HttpPropFind();
+		request.setURI(new URI(url.getPath()));
+		request.setHeader("Depth", "1");
+		request.setEntity(new StringEntity(requestBody));
+		
+		HttpResponse response = httpClient.execute(targetHost,request);
+		
+		Log.d(TAG, "HTTP response status = "+response.getStatusLine().getStatusCode());
+		
+		if (response.getStatusLine().getStatusCode()==401) {
+			//unauthorised
+			return TestConnectionResult.WRONG_CREDENTIAL;
+		}
+		
+		if (response.getStatusLine().getStatusCode()==404) {
+			//not found
+			return TestConnectionResult.WRONG_URL;
+		}
+		
+		if ((response.getStatusLine().getStatusCode() != 200) &&
+				(response.getStatusLine().getStatusCode() != 207)) {
+			return TestConnectionResult.WRONG_SERVER_STATUS;
+		}
+		
+		BufferedReader reader = new BufferedReader(new InputStreamReader(response.getEntity().getContent(), "UTF-8"));
+		
+		String line;
+		String body = "";
+		do {
+			line = reader.readLine();
+			if (line != null)
+				body += line;
+		} while (line != null);
+		
+		Log.d(TAG, "HttpResponse status="+response.getStatusLine()+ " body= "+body);
+
+		DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+		factory.setNamespaceAware(true);
+		DocumentBuilder builder = factory.newDocumentBuilder();
+		Document dom = builder.parse(new InputSource(new ByteArrayInputStream(body.getBytes("utf-8"))));
+		Element root = dom.getDocumentElement();
+		NodeList items = root.getElementsByTagNameNS("*","principal");
+		
+		if (items.getLength()!=1) {
+			Log.d (TAG, "endConnection failure");
+			return TestConnectionResult.WRONG_ANSWER;
+		} else {
+			Log.d (TAG, "endConnection success");
+			return TestConnectionResult.SUCCESS;
+		}
+		
+		 
 	}
 	
 	

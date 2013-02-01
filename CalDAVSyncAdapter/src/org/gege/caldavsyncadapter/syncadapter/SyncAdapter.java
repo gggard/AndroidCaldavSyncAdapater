@@ -8,6 +8,8 @@ import java.security.GeneralSecurityException;
 
 import javax.xml.parsers.ParserConfigurationException;
 
+import net.fortuna.ical4j.data.ParserException;
+
 import org.apache.http.client.ClientProtocolException;
 import org.gege.caldavsyncadapter.Constants;
 import org.gege.caldavsyncadapter.android.entities.AndroidEvent;
@@ -118,18 +120,17 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 				}
 				
 			}
-		} catch (Exception e) {
+		}
+		catch (Exception e) {
 			Log.e(TAG, "Updating calendar exception "+e.getClass().getName(), e);
 			throw new RuntimeException(e);
 		}
-		
-		
 	}
 
 	
 
 	private void synchroniseEvents(CaldavFacade facade, Account account,
-			ContentProviderClient provider, Uri calendarUri, Calendar calendar) throws ClientProtocolException, URISyntaxException, IOException, ParserConfigurationException, SAXException, RemoteException, CaldavProtocolException {
+			ContentProviderClient provider, Uri calendarUri, Calendar calendar) throws ClientProtocolException, URISyntaxException, IOException, ParserConfigurationException, SAXException, RemoteException, CaldavProtocolException, ParserException {
 		
 		if (DROP_CALENDAR_EVENTS) {
 			dropAllEvents(account, provider, calendarUri);
@@ -139,6 +140,7 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 		
 		for (CalendarEvent event : eventList) {
 			
+			try {
 			AndroidEvent androidEvent = getAndroidEvent(provider, event.getUri(), calendarUri);
 			
 
@@ -153,6 +155,11 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 				}
 				
 				tagAndroidEvent(provider, account, androidEvent);
+			}
+			} catch (ParserException ex) {
+				Log.e(TAG, "Parser exception", ex);
+			} catch (CaldavProtocolException ex) {
+				Log.e(TAG, "Caldav exception", ex);
 			}
 			
 		}
@@ -195,7 +202,7 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 
 	
 	private void updateAndroidEvent(ContentProviderClient provider,
-			Account account, AndroidEvent androidEvent, CalendarEvent event) throws ClientProtocolException, IOException, CaldavProtocolException, RemoteException {
+			Account account, AndroidEvent androidEvent, CalendarEvent event) throws ClientProtocolException, IOException, CaldavProtocolException, RemoteException, ParserException {
 		Log.i(TAG, "Updating calendar event for "+androidEvent.getUri());
 		
 		event.fetchBody();
@@ -232,7 +239,7 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 		return values;
 	}
 	
-	private void createAndroidEvent(ContentProviderClient provider, Account account, Uri calendarUri, CalendarEvent event) throws ClientProtocolException, IOException, CaldavProtocolException, RemoteException {
+	private void createAndroidEvent(ContentProviderClient provider, Account account, Uri calendarUri, CalendarEvent event) throws ClientProtocolException, IOException, CaldavProtocolException, RemoteException, ParserException {
 		event.fetchBody();
 		
 		ContentValues values = getContentValues(event, calendarUri);

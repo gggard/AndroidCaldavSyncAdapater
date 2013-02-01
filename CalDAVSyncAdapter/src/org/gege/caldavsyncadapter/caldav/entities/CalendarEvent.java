@@ -57,7 +57,7 @@ public class CalendarEvent {
 		this.eTag = eTag;
 	}
 
-	public void fetchBody() throws ClientProtocolException, IOException, CaldavProtocolException {
+	public void fetchBody() throws ClientProtocolException, IOException, CaldavProtocolException, ParserException {
 		
 		CaldavFacade.fetchEventBody(this);
 		
@@ -110,7 +110,7 @@ DateTime endDate = null;
 	}
 	
 
-	private void parseIcs() throws CaldavProtocolException {
+	private void parseIcs() throws CaldavProtocolException, IOException, ParserException {
 		CalendarBuilder builder = new CalendarBuilder();
 		CompatibilityHints.setHintEnabled(CompatibilityHints.KEY_RELAXED_UNFOLDING, true);
 		CompatibilityHints.setHintEnabled(CompatibilityHints.KEY_RELAXED_PARSING, true);
@@ -118,7 +118,7 @@ DateTime endDate = null;
 		
 		StringReader reader = new StringReader(this.ics);
 
-		try {
+		
 			this.calendar = builder.build(reader);
 			
 			ComponentList components = this.calendar.getComponents(Component.VEVENT);
@@ -148,11 +148,7 @@ DateTime endDate = null;
 //				Log.e(TAG, "DTSTART = "+endDate.getTime());
 			
 			 
-		} catch (IOException e) {
-			Log.e(TAG, "Exception Parsing ICS", e);
-		} catch (ParserException e) {
-			Log.e(TAG, "Exception Parsing ICS", e);
-		}
+		
 	}
 
 	public void setICS(String ics) {

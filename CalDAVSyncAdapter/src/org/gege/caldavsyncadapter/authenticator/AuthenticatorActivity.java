@@ -1,11 +1,18 @@
 package org.gege.caldavsyncadapter.authenticator;
 
+import java.io.IOException;
+import java.io.UnsupportedEncodingException;
 import java.net.MalformedURLException;
+import java.net.URISyntaxException;
 import java.security.GeneralSecurityException;
+
+import javax.xml.parsers.ParserConfigurationException;
 
 import org.gege.caldavsyncadapter.Constants;
 import org.gege.caldavsyncadapter.R;
 import org.gege.caldavsyncadapter.caldav.CaldavFacade;
+import org.gege.caldavsyncadapter.caldav.CaldavFacade.TestConnectionResult;
+import org.xml.sax.SAXException;
 
 import android.accounts.Account;
 import android.accounts.AccountManager;
@@ -24,6 +31,7 @@ import android.view.View;
 import android.view.inputmethod.EditorInfo;
 import android.widget.EditText;
 import android.widget.TextView;
+import android.widget.Toast;
 
 /**
  * Activity which displays a login screen to the user, offering registration as
@@ -224,68 +232,119 @@ public class AuthenticatorActivity extends Activity {
 		}
 	}
 
+	
+	protected enum LoginResult {
+		Success, MalformedURLException, GeneralSecurityException, UnkonwnException, WrongCredentials, InvalidResponse, WrongUrl
+	}
+	
+	
 	/**
 	 * Represents an asynchronous login/registration task used to authenticate
 	 * the user.
 	 */
-	public class UserLoginTask extends AsyncTask<Void, Void, Boolean> {
+	public class UserLoginTask extends AsyncTask<Void, Void, LoginResult> {
 		
 
 		@Override
-		protected Boolean doInBackground(Void... params) {
+		protected LoginResult doInBackground(Void... params) {
 			// TODO: attempt authentication against a network service.
 
+			TestConnectionResult result = null;
 			
 			try {
 				CaldavFacade facade = new CaldavFacade(mUser, mPassword, mURL);
-				facade.testConnection();
-			} catch (MalformedURLException e) {
+				result = facade.testConnection();
+				Log.i(TAG, "testConnection status="+result);
+			} catch (MalformedURLException e) {				
 				Log.w(TAG,"testConnection", e);
-			}  catch (GeneralSecurityException e) {
+				return LoginResult.MalformedURLException;
+			} catch (UnsupportedEncodingException e) {
 				Log.w(TAG,"testConnection", e);
-			} catch (Exception e) {
+			} catch (ParserConfigurationException e) {
+				Log.w(TAG,"testConnection", e);
+			} catch (SAXException e) {
+				Log.w(TAG,"testConnection", e);
+				return LoginResult.InvalidResponse;
+			} catch (IOException e) {
+				Log.w(TAG,"testConnection", e);
+			} catch (URISyntaxException e) {
 				Log.w(TAG,"testConnection", e);
 			}
-			
-//			try {
-//				// Simulate network access.
-//				Thread.sleep(2000);
-//			} catch (InterruptedException e) {
-//				return false;
-//			}
 
-//			for (String credential : DUMMY_CREDENTIALS) {
-//				String[] pieces = credential.split(":");
-//				if (pieces[0].equals(mUser)) {
-//					// Account exists, return true if the password matches.
-//					return pieces[1].equals(mPassword);
-//				}
-//			}
+			
+			switch (result) {
+			case SUCCESS:
 
-			// TODO: register the new account here.
+				final Account account = new Account(mUser, "org.gege.caldavsyncadapter.account");			
+				mAccountManager.addAccountExplicitly(account, mPassword, null);
+				mAccountManager.setUserData(account, Constants.USER_DATA_URL_KEY, mURL);
 			
+				return LoginResult.Success;
+
+			case WRONG_CREDENTIAL:
+				return LoginResult.WrongCredentials;
+				
+			case WRONG_SERVER_STATUS:
+				return LoginResult.InvalidResponse;
+				
+			case WRONG_URL:
+				return LoginResult.WrongUrl;
+				
+			case WRONG_ANSWER:
+				return LoginResult.InvalidResponse;
+				
+			default:
+				return LoginResult.UnkonwnException;
+				
+			}
 			
-			final Account account = new Account(mUser, "org.gege.caldavsyncadapter.account");			
-			mAccountManager.addAccountExplicitly(account, mPassword, null);
-			mAccountManager.setUserData(account, Constants.USER_DATA_URL_KEY, mURL);
-			
-			return true;
 		}
 
 		
 
 		@Override
-		protected void onPostExecute(final Boolean success) {
+		protected void onPostExecute(final LoginResult result) {
 			mAuthTask = null;
 			showProgress(false);
 
-			if (success) {
-				finish();
-			} else {
-				mPasswordView
-						.setError(getString(R.string.error_incorrect_password));
-				mPasswordView.requestFocus();
-			}
+			int duration = Toast.LENGTH_SHORT;
+			Toast toast = null;
+			
+			switch (result) {
+				case Success:
+					finish();
+					break;
+				case MalformedURLException:
+					
+					toast = Toast.makeText(getApplicationContext(), R.string.error_incorrect_url_format, duration);
+					toast.show();
+					mURLView.setError(getString(R.string.error_incorrect_url_format));
+					mURLView.requestFocus();
+					break;
+				case InvalidResponse:
+					toast =  Toast.makeText(getApplicationContext(), R.string.error_invalid_server_answer, duration);
+					toast.show();
+					mURLView.setError(getString(R.string.error_invalid_server_answer));
+					mURLView.requestFocus();
+					break;
+				case WrongUrl:
+					toast =  Toast.makeText(getApplicationContext(), R.string.error_wrong_url, duration);
+					toast.show();
+					mURLView.setError(getString(R.string.error_wrong_url));
+					mURLView.requestFocus();
+					break;
+					
+				case WrongCredentials:
+					mPasswordView.setError(getString(R.string.error_incorrect_password));
+					mPasswordView.requestFocus();
+					break;
+				default:
+					break;
+				}
+				
+				
+				
+			
 		}
 
 		@Override
