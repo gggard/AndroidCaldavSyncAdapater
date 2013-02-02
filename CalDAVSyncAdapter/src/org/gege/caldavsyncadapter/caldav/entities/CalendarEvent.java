@@ -66,7 +66,11 @@ public class CalendarEvent {
 	}
 
 	public String getTitle() {
-		return calendarComponent.getProperty("SUMMARY").getValue();
+		Property property = calendarComponent.getProperty("SUMMARY");
+		if (property != null)
+			return property.getValue();
+		else
+			return "**unkonwn**";
 	}
 	
 	public long getStartTime() {
