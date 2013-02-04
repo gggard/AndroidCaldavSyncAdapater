@@ -247,7 +247,6 @@ public class AuthenticatorActivity extends Activity {
 
 		@Override
 		protected LoginResult doInBackground(Void... params) {
-			// TODO: attempt authentication against a network service.
 
 			TestConnectionResult result = null;
 			
