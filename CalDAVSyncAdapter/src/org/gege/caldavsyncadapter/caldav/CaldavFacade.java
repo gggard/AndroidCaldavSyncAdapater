@@ -102,7 +102,28 @@ public class CaldavFacade {
        BasicScheme basicAuth = new BasicScheme();
        localContext.setAttribute("preemptive-auth", basicAuth);
 
-       targetHost = new HttpHost(url.getHost(), 443, "https");
+       String proto = "http";
+       int port = 80;
+       
+       if (url.getProtocol().equalsIgnoreCase("https")) {
+    	   proto="https";
+    	   if (url.getPort() == -1)
+    		   port = 443;
+    	   else
+    		   port = url.getPort();
+       }
+       
+       if (url.getProtocol().equalsIgnoreCase("http")) {
+    	   proto="http";
+    	   if (url.getPort() == -1)
+    		   port = 80;
+    	   else
+    		   port = url.getPort();
+       }
+
+	   targetHost = new HttpHost(url.getHost(), port, proto);
+       
+      
        
        
        
