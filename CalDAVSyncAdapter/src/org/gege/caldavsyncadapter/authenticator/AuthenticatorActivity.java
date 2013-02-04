@@ -8,6 +8,7 @@ import java.security.GeneralSecurityException;
 
 import javax.xml.parsers.ParserConfigurationException;
 
+import org.apache.http.conn.HttpHostConnectException;
 import org.gege.caldavsyncadapter.Constants;
 import org.gege.caldavsyncadapter.R;
 import org.gege.caldavsyncadapter.caldav.CaldavFacade;
@@ -234,7 +235,7 @@ public class AuthenticatorActivity extends Activity {
 
 	
 	protected enum LoginResult {
-		Success, MalformedURLException, GeneralSecurityException, UnkonwnException, WrongCredentials, InvalidResponse, WrongUrl
+		Success, MalformedURLException, GeneralSecurityException, UnkonwnException, WrongCredentials, InvalidResponse, WrongUrl, ConnectionRefused
 	}
 	
 	
@@ -254,6 +255,9 @@ public class AuthenticatorActivity extends Activity {
 				CaldavFacade facade = new CaldavFacade(mUser, mPassword, mURL);
 				result = facade.testConnection();
 				Log.i(TAG, "testConnection status="+result);
+			} catch (HttpHostConnectException e) {
+				Log.w(TAG,"testConnection", e);
+				return LoginResult.ConnectionRefused;
 			} catch (MalformedURLException e) {				
 				Log.w(TAG,"testConnection", e);
 				return LoginResult.MalformedURLException;
@@ -344,7 +348,18 @@ public class AuthenticatorActivity extends Activity {
 					mPasswordView.setError(getString(R.string.error_incorrect_password));
 					mPasswordView.requestFocus();
 					break;
+					
+				case ConnectionRefused:
+					toast =  Toast.makeText(getApplicationContext(), R.string.error_connection_refused, duration);
+					toast.show();
+					mURLView.setError(getString(R.string.error_connection_refused));
+					mURLView.requestFocus();
+					break;
 				default:
+					toast =  Toast.makeText(getApplicationContext(), R.string.error_unkown_error, duration);
+					toast.show();
+					mURLView.setError(getString(R.string.error_unkown_error));
+					mURLView.requestFocus();
 					break;
 				}
 				

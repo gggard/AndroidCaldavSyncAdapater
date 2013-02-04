@@ -35,12 +35,14 @@ public final class R {
         public static final int action_sign_in_register=0x7f050005;
         public static final int action_sign_in_short=0x7f050006;
         public static final int app_name=0x7f050000;
+        public static final int error_connection_refused=0x7f050011;
         public static final int error_field_required=0x7f05000c;
         public static final int error_incorrect_password=0x7f05000b;
         public static final int error_incorrect_url_format=0x7f05000e;
         public static final int error_invalid_email=0x7f050009;
         public static final int error_invalid_password=0x7f05000a;
         public static final int error_invalid_server_answer=0x7f05000f;
+        public static final int error_unkown_error=0x7f050012;
         public static final int error_wrong_url=0x7f050010;
         public static final int label=0x7f050001;
         public static final int login_progress_signing_in=0x7f050008;

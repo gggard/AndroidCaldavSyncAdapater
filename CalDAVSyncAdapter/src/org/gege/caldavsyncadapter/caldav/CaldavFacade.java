@@ -27,6 +27,7 @@ import org.apache.http.auth.UsernamePasswordCredentials;
 import org.apache.http.client.ClientProtocolException;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.methods.HttpGet;
+import org.apache.http.conn.HttpHostConnectException;
 import org.apache.http.conn.params.ConnManagerPNames;
 import org.apache.http.conn.params.ConnPerRouteBean;
 import org.apache.http.conn.scheme.PlainSocketFactory;
@@ -155,7 +156,7 @@ public class CaldavFacade {
 		WRONG_ANSWER, SUCCESS
 	}
 	
-	public TestConnectionResult testConnection() throws ParserConfigurationException, UnsupportedEncodingException, SAXException, IOException, URISyntaxException {
+	public TestConnectionResult testConnection() throws HttpHostConnectException, ParserConfigurationException, UnsupportedEncodingException, SAXException, IOException, URISyntaxException {
 		
 		Log.d (TAG, "start testConnection ");
 		
