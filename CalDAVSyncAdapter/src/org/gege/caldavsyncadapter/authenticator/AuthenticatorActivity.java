@@ -260,17 +260,24 @@ public class AuthenticatorActivity extends Activity {
 				return LoginResult.MalformedURLException;
 			} catch (UnsupportedEncodingException e) {
 				Log.w(TAG,"testConnection", e);
+				return LoginResult.UnkonwnException;
 			} catch (ParserConfigurationException e) {
 				Log.w(TAG,"testConnection", e);
+				return LoginResult.UnkonwnException;
 			} catch (SAXException e) {
 				Log.w(TAG,"testConnection", e);
 				return LoginResult.InvalidResponse;
 			} catch (IOException e) {
 				Log.w(TAG,"testConnection", e);
+				return LoginResult.UnkonwnException;
 			} catch (URISyntaxException e) {
 				Log.w(TAG,"testConnection", e);
+				return LoginResult.MalformedURLException;
 			}
 
+			if (result == null) {
+				return LoginResult.UnkonwnException;
+			}
 			
 			switch (result) {
 			case SUCCESS:
