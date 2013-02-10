@@ -94,11 +94,13 @@ public class CaldavFacade {
 		
 		httpClient = getHttpClient();
 		
-		AuthScope as = new AuthScope(url.getHost(), 443);
-        UsernamePasswordCredentials upc = new UsernamePasswordCredentials(mUser, mPassword);
-
+	    UsernamePasswordCredentials upc = new UsernamePasswordCredentials(mUser, mPassword);
+		
+	   AuthScope as = new AuthScope(url.getHost(), -1);
        ((AbstractHttpClient) httpClient).getCredentialsProvider().setCredentials(as, upc);
 		
+       
+       
        BasicHttpContext localContext = new BasicHttpContext();
 
        BasicScheme basicAuth = new BasicScheme();
