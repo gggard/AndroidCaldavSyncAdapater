@@ -61,10 +61,15 @@ org.gege.caldavsyncadapter.R$menu: int activity_authenticator
 org.gege.caldavsyncadapter.R$string: int action_sign_in_register
 org.gege.caldavsyncadapter.R$string: int action_sign_in_short
 org.gege.caldavsyncadapter.R$string: int app_name
+org.gege.caldavsyncadapter.R$string: int error_connection_refused
 org.gege.caldavsyncadapter.R$string: int error_field_required
 org.gege.caldavsyncadapter.R$string: int error_incorrect_password
+org.gege.caldavsyncadapter.R$string: int error_incorrect_url_format
 org.gege.caldavsyncadapter.R$string: int error_invalid_email
 org.gege.caldavsyncadapter.R$string: int error_invalid_password
+org.gege.caldavsyncadapter.R$string: int error_invalid_server_answer
+org.gege.caldavsyncadapter.R$string: int error_unkown_error
+org.gege.caldavsyncadapter.R$string: int error_wrong_url
 org.gege.caldavsyncadapter.R$string: int label
 org.gege.caldavsyncadapter.R$string: int login_progress_signing_in
 org.gege.caldavsyncadapter.R$string: int menu_forgot_password
@@ -81,5 +86,9 @@ org.gege.caldavsyncadapter.authenticator.AuthenticationService
 org.gege.caldavsyncadapter.authenticator.AuthenticationService: AuthenticationService()
 org.gege.caldavsyncadapter.authenticator.AuthenticatorActivity
 org.gege.caldavsyncadapter.authenticator.AuthenticatorActivity: AuthenticatorActivity()
+org.gege.caldavsyncadapter.authenticator.AuthenticatorActivity$LoginResult: org.gege.caldavsyncadapter.authenticator.AuthenticatorActivity$LoginResult[] values()
+org.gege.caldavsyncadapter.authenticator.AuthenticatorActivity$LoginResult: org.gege.caldavsyncadapter.authenticator.AuthenticatorActivity$LoginResult valueOf(java.lang.String)
+org.gege.caldavsyncadapter.caldav.CaldavFacade$TestConnectionResult: org.gege.caldavsyncadapter.caldav.CaldavFacade$TestConnectionResult[] values()
+org.gege.caldavsyncadapter.caldav.CaldavFacade$TestConnectionResult: org.gege.caldavsyncadapter.caldav.CaldavFacade$TestConnectionResult valueOf(java.lang.String)
 org.gege.caldavsyncadapter.syncadapter.SyncService
 org.gege.caldavsyncadapter.syncadapter.SyncService: SyncService()

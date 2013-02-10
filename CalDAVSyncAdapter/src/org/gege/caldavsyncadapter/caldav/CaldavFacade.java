@@ -46,6 +46,7 @@ import org.apache.http.protocol.BasicHttpContext;
 import org.gege.caldavsyncadapter.caldav.entities.Calendar;
 import org.gege.caldavsyncadapter.caldav.entities.CalendarEvent;
 import org.gege.caldavsyncadapter.caldav.http.HttpPropFind;
+import org.w3c.dom.DOMException;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
@@ -282,7 +283,7 @@ public class CaldavFacade {
 			NodeList children = node.getChildNodes();
 			for (int j=0 ; j<children.getLength() ; j++) {
 				Node childNode = children.item(j);
-				if (childNode.getNodeName().equalsIgnoreCase("href")) {
+				if (childNode.getLocalName().equalsIgnoreCase("href")) {
 					calendarEvent.setURI(new URI(childNode.getTextContent()));
 				}
 			}
@@ -293,8 +294,162 @@ public class CaldavFacade {
 		
 		return calendarEventList;
 	}
-	
+
 	public Iterable<Calendar> getCalendarList() throws ClientProtocolException, IOException, URISyntaxException, ParserConfigurationException, SAXException, CaldavProtocolException  {
+		Iterable<Calendar> response = getCalendarList_method1();
+		if (!response.iterator().hasNext()) {
+			// used for baikal server
+			Log.d(TAG, "No calendars found, switching to method 2");
+			response = getCalendarList_method2();
+		}
+		return response;
+	}
+	
+	public Iterable<Calendar> getCalendarList_method2() throws ClientProtocolException, IOException, URISyntaxException, ParserConfigurationException, SAXException, CaldavProtocolException  {
+		
+		List<Calendar> calendarList = new ArrayList<Calendar>();
+		
+		String requestBody = "<?xml version=\"1.0\" encoding=\"utf-8\"?>"+
+		"<propfind xmlns=\"DAV:\">"+
+		"<prop>"+
+        "  <calendar-home-set xmlns=\"urn:ietf:params:xml:ns:caldav\"/>"+
+		"</prop>"+
+        "</propfind>";
+		
+		HttpPropFind request = null;
+		
+		request = new HttpPropFind();
+		request.setURI(new URI(url.getPath()));
+		request.setHeader("Depth", "1");
+		request.setEntity(new StringEntity(requestBody));
+		
+		HttpResponse response = httpClient.execute(targetHost,request);
+		
+		BufferedReader reader = new BufferedReader(new InputStreamReader(response.getEntity().getContent(), "UTF-8"));
+		
+		String line;
+		String body = "";
+		do {
+			line = reader.readLine();
+			if (line != null)
+				body += line;
+		} while (line != null);
+		
+		Log.d(TAG, "HttpResponse status="+response.getStatusLine()+ " body= "+body);
+
+		DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+		factory.setNamespaceAware(true);
+		DocumentBuilder builder = factory.newDocumentBuilder();
+		Document dom = builder.parse(new InputSource(new ByteArrayInputStream(body.getBytes("utf-8"))));
+		Element root = dom.getDocumentElement();
+		NodeList items = root.getElementsByTagNameNS("*","calendar-home-set");
+		
+		if (items.getLength()>1) {
+			throw new CaldavProtocolException("Multiple calendar-home-set returned");
+		}
+		
+		if (items.getLength()==1) {
+			
+			Node item = items.item(0);
+			
+			NodeList children = item.getChildNodes();
+			for (int j=0 ; j<children.getLength() ; j++) {
+				Node node = children.item(j);
+				if (node.getLocalName().equalsIgnoreCase("href")) {
+					return getCalendarsFromCalendarSet(new URI(node.getTextContent()));
+					
+					//Calendar calendar = new Calendar();
+					//calendar.setURI(new URI(node.getTextContent()));
+					//updateCalendarInfos(calendar);
+					//calendarList.add(calendar);
+				}
+			}
+		}
+		
+		return calendarList;
+	}
+	
+	private Iterable<Calendar> getCalendarsFromCalendarSet(URI uri) throws ClientProtocolException, IOException, ParserConfigurationException, SAXException, DOMException, URISyntaxException {
+		
+		List<Calendar> calendarList = new ArrayList<Calendar>();
+		
+		String requestBody = 
+				"<?xml version=\"1.0\" encoding=\"utf-8\"?>"+
+		"<propfind xmlns=\"DAV:\" xmlns:CS=\"http://calendarserver.org/ns/\">"+
+		"<prop>"+
+		"<displayname/>"+
+		  "<resourcetype/>"+
+		"<CS:getctag/>"+
+		 "</prop>"+
+		"</propfind>";
+		
+		HttpPropFind request = null;
+		
+		request = new HttpPropFind();
+		request.setURI(uri);
+		request.setHeader("Depth", "1");
+		request.setEntity(new StringEntity(requestBody));
+		
+		HttpResponse response = httpClient.execute(targetHost,request);
+		
+		BufferedReader reader = new BufferedReader(new InputStreamReader(response.getEntity().getContent(), "UTF-8"));
+		
+		String line;
+		String body = "";
+		do {
+			line = reader.readLine();
+			if (line != null)
+				body += line;
+		} while (line != null);
+		
+		Log.d(TAG, "HttpResponse status="+response.getStatusLine()+ " body= "+body);
+
+		
+		DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+		factory.setNamespaceAware(true);
+		DocumentBuilder builder = factory.newDocumentBuilder();
+		Document dom = builder.parse(new InputSource(new ByteArrayInputStream(body.getBytes("utf-8"))));
+		Element root = dom.getDocumentElement();
+		NodeList items = root.getElementsByTagNameNS("*","calendar");
+		
+		
+		for (int i=0;i<items.getLength();i++){
+			Calendar calendar = new Calendar();
+			Node item = items.item(i);
+			item = item.getParentNode(); //resourcetype
+			item = item.getParentNode(); //prop
+			
+			NodeList children1 = item.getChildNodes();
+			for (int j=0 ; j<children1.getLength() ; j++) {
+				Node node = children1.item(j);
+				if (node.getLocalName().equalsIgnoreCase("displayname")) {
+					calendar.setDisplayName(node.getTextContent());
+				}
+
+				if (node.getLocalName().equalsIgnoreCase("getctag")) {
+					calendar.setCTag(node.getTextContent());
+				}
+			}
+			
+			item = item.getParentNode(); // propstat
+			item = item.getParentNode(); // response
+			
+			NodeList children = item.getChildNodes();
+			for (int j=0 ; j<children.getLength() ; j++) {
+				Node node = children.item(j);
+				if (node.getLocalName().equalsIgnoreCase("href")) {
+					calendar.setURI(new URI(node.getTextContent()));
+				}
+			}
+			
+			calendarList.add(calendar);
+		}
+
+
+		return calendarList;
+	}
+
+	public Iterable<Calendar> getCalendarList_method1() throws ClientProtocolException, IOException, URISyntaxException, ParserConfigurationException, SAXException, CaldavProtocolException  {
 		
 		List<Calendar> calendarList = new ArrayList<Calendar>();
 		
@@ -384,6 +539,9 @@ public class CaldavFacade {
 			if (line != null)
 				body += line;
 		} while (line != null);
+		
+		Log.d(TAG, "HttpResponse status="+response.getStatusLine()+ " body= "+body);
+
 		
 		DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
 		factory.setNamespaceAware(true);
