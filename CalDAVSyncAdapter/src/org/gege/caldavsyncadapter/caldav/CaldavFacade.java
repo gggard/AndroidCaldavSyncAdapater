@@ -215,7 +215,8 @@ public class CaldavFacade {
 		Element root = dom.getDocumentElement();
 		NodeList items = root.getElementsByTagNameNS("*","principal");
 		
-		if (items.getLength()!=1) {
+		// FIX ME : should do something more smarter here...
+		if (items.getLength()<1) {
 			Log.d (TAG, "endConnection failure");
 			return TestConnectionResult.WRONG_ANSWER;
 		} else {
@@ -315,6 +316,7 @@ public class CaldavFacade {
 		"<propfind xmlns=\"DAV:\">"+
 		"<prop>"+
         "  <calendar-home-set xmlns=\"urn:ietf:params:xml:ns:caldav\"/>"+
+		"  <resourcetype/>"+
 		"</prop>"+
         "</propfind>";
 		
@@ -346,11 +348,17 @@ public class CaldavFacade {
 		Element root = dom.getDocumentElement();
 		NodeList items = root.getElementsByTagNameNS("*","calendar-home-set");
 		
-		if (items.getLength()>1) {
-			throw new CaldavProtocolException("Multiple calendar-home-set returned");
+		
+		if (items.getLength()==0) {
+			throw new CaldavProtocolException("No calendar-home-set returned");
 		}
 		
-		if (items.getLength()==1) {
+		// remove test on length > 1
+		//if (items.getLength()>1) {
+		//	throw new CaldavProtocolException("Multiple calendar-home-set returned");
+		//}
+		
+		//if (items.getLength()==1) {
 			
 			Node item = items.item(0);
 			
@@ -366,7 +374,7 @@ public class CaldavFacade {
 					//calendarList.add(calendar);
 				}
 			}
-		}
+		//}
 		
 		return calendarList;
 	}
