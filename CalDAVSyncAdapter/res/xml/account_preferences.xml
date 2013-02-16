@@ -1,0 +1,15 @@
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
+    
+    
+    <PreferenceCategory android:title="@string/pref_protocol_title_fmt">
+        <PreferenceScreen android:key="key1" android:summary="key1" 
+            android:title="key1">
+            <intent
+             android:action="key1.ACTION"
+             android:targetPackage="org.gege.caldavsyncadapter"
+             android:targetClass="SettingsActivity" />
+        </PreferenceScreen>
+    </PreferenceCategory>
+    <CheckBoxPreference android:title="@string/pref_invalid_cert" android:enabled="false"/>
+    
+</PreferenceScreen>

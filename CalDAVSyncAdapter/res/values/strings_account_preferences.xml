@@ -1,0 +1,7 @@
+<resources>
+
+    <string name="pref_protocol_title_fmt">Preferences</string>
+<string name="pref_invalid_cert">Accept invalid certificates</string>
+   
+
+</resources>
