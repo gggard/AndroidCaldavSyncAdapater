@@ -427,13 +427,15 @@ BufferedReader reader = new BufferedReader(new InputStreamReader(response.getEnt
 			NodeList children = item.getChildNodes();
 			for (int j=0 ; j<children.getLength() ; j++) {
 				Node node = children.item(j);
-				if (node.getLocalName().equalsIgnoreCase("href")) {
-					return getCalendarsFromCalendarSet(new URI(node.getTextContent()));
-					
-					//Calendar calendar = new Calendar();
-					//calendar.setURI(new URI(node.getTextContent()));
-					//updateCalendarInfos(calendar);
-					//calendarList.add(calendar);
+				if (node.getLocalName() != null) {
+					if (node.getLocalName().equalsIgnoreCase("href")) {
+						return getCalendarsFromCalendarSet(new URI(node.getTextContent()));
+
+						//Calendar calendar = new Calendar();
+						//calendar.setURI(new URI(node.getTextContent()));
+						//updateCalendarInfos(calendar);
+						//calendarList.add(calendar);
+					}
 				}
 			}
 		//}
@@ -494,11 +496,11 @@ BufferedReader reader = new BufferedReader(new InputStreamReader(response.getEnt
 			NodeList children1 = item.getChildNodes();
 			for (int j=0 ; j<children1.getLength() ; j++) {
 				Node node = children1.item(j);
-				if (node.getLocalName().equalsIgnoreCase("displayname")) {
+				if ((node.getLocalName() != null) && (node.getLocalName().equalsIgnoreCase("displayname"))) {
 					calendar.setDisplayName(node.getTextContent());
 				}
 
-				if (node.getLocalName().equalsIgnoreCase("getctag")) {
+				if ((node.getLocalName() != null) && (node.getLocalName().equalsIgnoreCase("getctag"))) {
 					calendar.setCTag(node.getTextContent());
 				}
 			}
@@ -509,7 +511,7 @@ BufferedReader reader = new BufferedReader(new InputStreamReader(response.getEnt
 			NodeList children = item.getChildNodes();
 			for (int j=0 ; j<children.getLength() ; j++) {
 				Node node = children.item(j);
-				if (node.getLocalName().equalsIgnoreCase("href")) {
+				if ((node.getLocalName() != null) && (node.getLocalName().equalsIgnoreCase("href"))) {
 					calendar.setURI(new URI(node.getTextContent()));
 				}
 			}
