@@ -52,6 +52,8 @@ public final class R {
         /**  Strings related to login 
          */
         public static final int prompt_user=0x7f050003;
+        public static final int success_calendar=0x7f050013;
+        public static final int success_collection=0x7f050014;
         public static final int title_activity_authenticator=0x7f050002;
     }
     public static final class style {

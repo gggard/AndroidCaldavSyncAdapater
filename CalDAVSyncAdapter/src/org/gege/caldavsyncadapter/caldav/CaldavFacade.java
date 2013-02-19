@@ -156,8 +156,8 @@ public class CaldavFacade {
 		WRONG_CREDENTIAL,
 		WRONG_URL,
 		WRONG_SERVER_STATUS,
-		WRONG_ANSWER, SUCCESS
-	}
+		WRONG_ANSWER, SUCCESS_CALENDAR
+	, SUCCESS_COLLECTION}
 	
 	public TestConnectionResult testConnection() throws HttpHostConnectException, ParserConfigurationException, UnsupportedEncodingException, SAXException, IOException, URISyntaxException {
 		
@@ -213,18 +213,26 @@ public class CaldavFacade {
 		DocumentBuilder builder = factory.newDocumentBuilder();
 		Document dom = builder.parse(new InputSource(new ByteArrayInputStream(body.getBytes("utf-8"))));
 		Element root = dom.getDocumentElement();
+		
+		
 		NodeList items = root.getElementsByTagNameNS("*","principal");
 		
 		// FIX ME : should do something more smarter here...
-		if (items.getLength()<1) {
-			Log.d (TAG, "endConnection failure");
-			return TestConnectionResult.WRONG_ANSWER;
-		} else {
+		if (items.getLength()>=1) {
 			Log.d (TAG, "endConnection success");
-			return TestConnectionResult.SUCCESS;
+			return TestConnectionResult.SUCCESS_COLLECTION;
 		}
+
+		// only one calendar
+		items = root.getElementsByTagNameNS("*","calendar");
+		if (items.getLength()>=1) {
+			Log.d (TAG, "endConnection success");
+			return TestConnectionResult.SUCCESS_CALENDAR;
+		}
+
+		Log.d (TAG, "endConnection failure");
+		return TestConnectionResult.WRONG_ANSWER;
 		
-		 
 	}
 	
 	
@@ -286,8 +294,10 @@ public class CaldavFacade {
 			NodeList children = node.getChildNodes();
 			for (int j=0 ; j<children.getLength() ; j++) {
 				Node childNode = children.item(j);
-				if (childNode.getLocalName().equalsIgnoreCase("href")) {
-					calendarEvent.setURI(new URI(childNode.getTextContent()));
+				if (childNode.getLocalName() != null) {
+					if (childNode.getLocalName().equalsIgnoreCase("href")) {
+						calendarEvent.setURI(new URI(childNode.getTextContent()));
+					}
 				}
 			}
 			
@@ -299,15 +309,67 @@ public class CaldavFacade {
 	}
 
 	public Iterable<Calendar> getCalendarList() throws ClientProtocolException, IOException, URISyntaxException, ParserConfigurationException, SAXException, CaldavProtocolException  {
-		Iterable<Calendar> response = getCalendarList_method1();
+		Iterable<Calendar> response;
+		
+		// check if the URI is a calendar
+		if (isCalendar()) {
+			Log.d(TAG, "Calendar URI detected");
+			return getCalendarsFromCalendarSet(new URI(url.getPath()));
+		}
+		
+		response = getCalendarList_method1();
 		if (!response.iterator().hasNext()) {
 			// used for baikal server
 			Log.d(TAG, "No calendars found, switching to method 2");
 			response = getCalendarList_method2();
 		}
+		
+		
+		
 		return response;
 	}
 	
+	private boolean isCalendar() throws URISyntaxException, ClientProtocolException, IOException, ParserConfigurationException, SAXException {
+		String requestBody = "<?xml version=\"1.0\" encoding=\"utf-8\"?>"+
+				"<propfind xmlns=\"DAV:\">"+
+				"<prop>"+
+				"  <resourcetype/>"+
+				"</prop>"+
+		        "</propfind>";
+				
+		HttpPropFind request = null;
+				
+		request = new HttpPropFind();
+		request.setURI(new URI(url.getPath()));
+		request.setHeader("Depth", "0");
+		request.setEntity(new StringEntity(requestBody));
+
+		HttpResponse response = httpClient.execute(targetHost,request);
+
+		
+BufferedReader reader = new BufferedReader(new InputStreamReader(response.getEntity().getContent(), "UTF-8"));
+		
+		String line;
+		String body = "";
+		do {
+			line = reader.readLine();
+			if (line != null)
+				body += line;
+		} while (line != null);
+		
+		Log.d(TAG, "HttpResponse status="+response.getStatusLine()+ " body= "+body);
+
+		DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+		factory.setNamespaceAware(true);
+		DocumentBuilder builder = factory.newDocumentBuilder();
+		Document dom = builder.parse(new InputSource(new ByteArrayInputStream(body.getBytes("utf-8"))));
+		Element root = dom.getDocumentElement();
+		NodeList items = root.getElementsByTagNameNS("*","calendar-home-set");
+		
+		
+		return (items.getLength()!=0);
+	}
+
 	public Iterable<Calendar> getCalendarList_method2() throws ClientProtocolException, IOException, URISyntaxException, ParserConfigurationException, SAXException, CaldavProtocolException  {
 		
 		List<Calendar> calendarList = new ArrayList<Calendar>();

@@ -235,7 +235,7 @@ public class AuthenticatorActivity extends Activity {
 
 	
 	protected enum LoginResult {
-		Success, MalformedURLException, GeneralSecurityException, UnkonwnException, WrongCredentials, InvalidResponse, WrongUrl, ConnectionRefused
+		 MalformedURLException, GeneralSecurityException, UnkonwnException, WrongCredentials, InvalidResponse, WrongUrl, ConnectionRefused, Success_Calendar, Success_Collection
 	}
 	
 	
@@ -283,13 +283,15 @@ public class AuthenticatorActivity extends Activity {
 			}
 			
 			switch (result) {
-			case SUCCESS:
+			
+			case SUCCESS_COLLECTION:
 
+			case SUCCESS_CALENDAR:
 				final Account account = new Account(mUser, "org.gege.caldavsyncadapter.account");			
 				mAccountManager.addAccountExplicitly(account, mPassword, null);
 				mAccountManager.setUserData(account, Constants.USER_DATA_URL_KEY, mURL);
 			
-				return LoginResult.Success;
+				return LoginResult.Success_Calendar;
 
 			case WRONG_CREDENTIAL:
 				return LoginResult.WrongCredentials;
@@ -321,9 +323,18 @@ public class AuthenticatorActivity extends Activity {
 			Toast toast = null;
 			
 			switch (result) {
-				case Success:
+				case Success_Calendar:
+					toast = Toast.makeText(getApplicationContext(), R.string.success_calendar, duration);
+					toast.show();
 					finish();
 					break;
+					
+				case Success_Collection:
+					toast = Toast.makeText(getApplicationContext(), R.string.success_collection, duration);
+					toast.show();
+					finish();
+					break;
+					
 				case MalformedURLException:
 					
 					toast = Toast.makeText(getApplicationContext(), R.string.error_incorrect_url_format, duration);
