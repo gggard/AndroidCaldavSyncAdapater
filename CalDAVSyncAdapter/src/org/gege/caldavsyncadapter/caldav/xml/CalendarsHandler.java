@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+import org.gege.caldavsyncadapter.BuildConfig;
 import org.gege.caldavsyncadapter.caldav.entities.Calendar;
 import org.xml.sax.Attributes;
 import org.xml.sax.SAXException;
@@ -33,8 +34,8 @@ public class CalendarsHandler extends DefaultHandler {
 	private String currentElement;
 	private Calendar calendar;
 	public List<Calendar> calendars = new ArrayList<Calendar>();
-	private boolean isResourceType = false;
-	private boolean isCalendarType;
+	private boolean isInResourceType = false;
+	private boolean isCalendarResource;
 
 	public final static List<String> TAGS = Arrays.asList(HREF, RESOURCETYPE,
 			DISPLAYNAME, GETCTAG, CALENDAR_COLOR);
@@ -44,10 +45,11 @@ public class CalendarsHandler extends DefaultHandler {
 			Attributes attributes) throws SAXException {
 		if (RESPONSE.equals(localName)) {
 			calendar = new Calendar();
+			isCalendarResource = false;
 		} else if (RESOURCETYPE.equals(localName)) {
-			isResourceType=true;
-		} else if(isResourceType && CALENDAR.equals(localName)){
-			isCalendarType = true;
+			isInResourceType = true;
+		} else if (isInResourceType && CALENDAR.equals(localName)) {
+			isCalendarResource = true;
 		}
 		currentElement = localName;
 	}
@@ -58,17 +60,12 @@ public class CalendarsHandler extends DefaultHandler {
 		if (TAGS.contains(currentElement)) {
 			stringBuilder.append(ch, start, length);
 		}
-
-		Log.d(CalendarsHandler.class.getSimpleName(), currentElement + " = "
-				+ new String(ch, start, length));
 	}
 
 	@Override
 	public void endElement(String uri, String localName, String qName)
 			throws SAXException {
-		if(RESOURCETYPE.equals(localName) && !isCalendarType){
-			calendar = null;
-		} else if (TAGS.contains(localName)) {
+		if (TAGS.contains(localName)) {
 			if (calendar != null) {
 				if (HREF.equals(localName)) {
 					String calendarUrl = stringBuilder.toString();
@@ -76,8 +73,13 @@ public class CalendarsHandler extends DefaultHandler {
 						URI calendarURI = new URI(calendarUrl);
 						calendar.setURI(homeURI.resolve(calendarURI));
 					} catch (URISyntaxException e) {
-						Log.e(CalendarsHandler.class.getSimpleName(),
-								"uri malformed: " + calendarUrl);
+						if (BuildConfig.DEBUG) {
+							Log.e(CalendarHomeHandler.class.getSimpleName(),
+									"calendar-uri malformed: " + calendarUrl);
+						} else {
+							Log.e(CalendarHomeHandler.class.getSimpleName(),
+									"uri malformed in href");
+						}
 					}
 				} else if (DISPLAYNAME.equals(localName)) {
 					calendar.setDisplayName(stringBuilder.toString());
@@ -87,13 +89,15 @@ public class CalendarsHandler extends DefaultHandler {
 			}
 			stringBuilder.setLength(0);
 		} else if (RESPONSE.equals(localName)) {
-			Log.d(CalendarsHandler.class.getSimpleName(), localName + " = "
-					+ calendar);
-			if (calendar != null && calendar.getURI() != null
-					&& calendar.getcTag() != null
-					&& calendar.getDisplayName() != null) {
+			if (isCalendarResource && isValidCalendar(calendar)) {
 				calendars.add(calendar);
 			}
 		}
+	}
+
+	private boolean isValidCalendar(Calendar calendar) {
+		return calendar != null && calendar.getURI() != null
+				&& calendar.getcTag() != null
+				&& calendar.getDisplayName() != null;
 	}
 }

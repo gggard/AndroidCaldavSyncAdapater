@@ -8,11 +8,11 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.UnsupportedEncodingException;
 import java.net.MalformedURLException;
+import java.net.SocketException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
 
 import javax.xml.parsers.DocumentBuilder;
@@ -30,6 +30,7 @@ import org.apache.http.auth.UsernamePasswordCredentials;
 import org.apache.http.client.ClientProtocolException;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.methods.HttpGet;
+import org.apache.http.conn.HttpHostConnectException;
 import org.apache.http.conn.params.ConnManagerPNames;
 import org.apache.http.conn.params.ConnPerRouteBean;
 import org.apache.http.conn.scheme.PlainSocketFactory;
@@ -45,13 +46,13 @@ import org.apache.http.params.BasicHttpParams;
 import org.apache.http.params.HttpParams;
 import org.apache.http.params.HttpProtocolParams;
 import org.apache.http.protocol.BasicHttpContext;
+import org.gege.caldavsyncadapter.BuildConfig;
 import org.gege.caldavsyncadapter.caldav.entities.Calendar;
 import org.gege.caldavsyncadapter.caldav.entities.CalendarEvent;
 import org.gege.caldavsyncadapter.caldav.http.HttpPropFind;
 import org.gege.caldavsyncadapter.caldav.xml.CalendarHomeHandler;
 import org.gege.caldavsyncadapter.caldav.xml.CalendarsHandler;
 import org.gege.caldavsyncadapter.caldav.xml.ServerInfoHandler;
-import org.w3c.dom.DOMException;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
@@ -141,13 +142,85 @@ public class CaldavFacade {
 	}
 
 	private final static String XML_VERSION = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n";
-	private final static String PROPFIND_USER_PRINCIPAL = XML_VERSION
-			+ "<d:propfind xmlns:d=\"DAV:\"><d:prop><d:current-user-principal /></d:prop></d:propfind>";
 
-	public URI getUserPrincipal() throws URISyntaxException,
+	/**
+	 * TODO: testConnection should return only an instance of
+	 * TestConnectionResult without throwing an exception or only throw checked
+	 * exceptions so you don't have to check the result of this function AND
+	 * handle the exceptions
+	 * 
+	 * @return {@link TestConnectionResult}
+	 * @throws HttpHostConnectException
+	 * @throws IOException
+	 * @throws URISyntaxException
+	 * @throws ParserConfigurationException
+	 * @throws SAXException
+	 */
+	public TestConnectionResult testConnection()
+			throws HttpHostConnectException, IOException, URISyntaxException,
+			ParserConfigurationException, SAXException {
+		Log.d(TAG, "start testConnection ");
+		try {
+			List<Calendar> calendars = new ArrayList<Calendar>();
+			calendars = forceGetCalendarsFromUri(url.toURI());
+			if (calendars.size() != 0) {
+				return TestConnectionResult.SUCCESS;
+			}
+
+			URI userPrincipal = getUserPrincipal();
+			List<URI> calendarSets = getCalendarHomes(userPrincipal);
+			for (URI calendarSet : calendarSets) {
+				List<Calendar> calendarSetCalendars = getCalendarsFromSet(calendarSet);
+				calendars.addAll(calendarSetCalendars);
+			}
+			if (calendarSets.size() == 0) {
+				return TestConnectionResult.WRONG_ANSWER;
+			}
+		} catch (FileNotFoundException e) {
+			return TestConnectionResult.WRONG_URL;
+		} catch (SocketException e) {
+			return TestConnectionResult.WRONG_URL;
+		} catch (AuthenticationException e) {
+			return TestConnectionResult.WRONG_CREDENTIAL;
+		} catch (ClientProtocolException e) {
+			return TestConnectionResult.WRONG_SERVER_STATUS;
+		} catch (CaldavProtocolException e) {
+			return TestConnectionResult.WRONG_ANSWER;
+		}
+		return TestConnectionResult.SUCCESS;
+	}
+
+	private List<Calendar> forceGetCalendarsFromUri(URI uri)
+			throws AuthenticationException, FileNotFoundException {
+		List<Calendar> calendars = new ArrayList<Calendar>();
+		Exception exception = null;
+		try {
+			calendars = getCalendarsFromSet(uri);
+		} catch (ClientProtocolException e) {
+			exception = e;
+		} catch (FileNotFoundException e) {
+			throw e;
+		} catch (IOException e) {
+			exception = e;
+		} catch (CaldavProtocolException e) {
+			exception = e;
+		}
+		if (exception != null && BuildConfig.DEBUG) {
+			Log.e(TAG, "Force get calendars from '" + uri.toString()
+					+ "' failed " + exception.getClass().getCanonicalName()
+					+ ": " + exception.getMessage());
+		}
+		return calendars;
+	}
+
+	private final static String PROPFIND_USER_PRINCIPAL = XML_VERSION
+			+ "<d:propfind xmlns:d=\"DAV:\"><d:prop><d:current-user-principal /><d:principal-URL /></d:prop></d:propfind>";
+
+	private URI getUserPrincipal() throws SocketException,
 			ClientProtocolException, AuthenticationException,
-			FileNotFoundException, IOException {
-		URI uri = new URI(this.url.toString());
+			FileNotFoundException, IOException, CaldavProtocolException,
+			URISyntaxException {
+		URI uri = this.url.toURI();
 		HttpPropFind request = createPropFindRequest(uri,
 				PROPFIND_USER_PRINCIPAL, 0);
 		HttpResponse response = httpClient.execute(targetHost, request);
@@ -160,63 +233,42 @@ public class CaldavFacade {
 		} else if (serverInfoHandler.principalUrl != null) {
 			userPrincipal = serverInfoHandler.principalUrl;
 		} else {
-			throw new ClientProtocolException("no principal url found");
+			throw new CaldavProtocolException("no principal url found");
 		}
 		try {
 			URI userPrincipalUri = new URI(userPrincipal);
-			return uri.resolve(userPrincipalUri);
+			userPrincipalUri = uri.resolve(userPrincipalUri);
+			if (BuildConfig.DEBUG) {
+				Log.d(TAG,
+						"Found userPrincipal: " + userPrincipalUri.toString());
+			}
+			return userPrincipalUri;
 		} catch (URISyntaxException e) {
-			throw new ClientProtocolException("principal url '" + userPrincipal
+			throw new CaldavProtocolException("principal url '" + userPrincipal
 					+ "' malformed");
 		}
-	}
-
-	public TestConnectionResult testConnection() throws IOException,
-			URISyntaxException, ParserConfigurationException, SAXException {
-		Log.d(TAG, "start testConnection ");
-		// TODO add WRONG_SERVER_STATUS
-		try {
-			URI userPrincipal = getUserPrincipal();
-			Log.d(TAG, userPrincipal.toString());
-			List<String> calendarSets = getCalendarHomes(userPrincipal);
-			List<Calendar> calendars = new ArrayList<Calendar>();
-			for (String calendarSet : calendarSets) {
-				try {
-					URI calendarSetURI = new URI(calendarSet);
-					calendarSetURI = userPrincipal.resolve(calendarSetURI);
-					Log.d(TAG, "calendarSetURI : " + calendarSetURI.toString());
-					calendars.addAll(getCalendarsFromSet(calendarSetURI));
-				} catch (URISyntaxException e) {
-					// TODO: handle exception
-				}
-			}
-			for (Calendar calendar : calendars) {
-				Log.d(TAG,
-						calendar.getURI() + " : " + calendar.getDisplayName());
-			}
-		} catch (FileNotFoundException e) {
-			return TestConnectionResult.WRONG_URL;
-		} catch (AuthenticationException e) {
-			return TestConnectionResult.WRONG_CREDENTIAL;
-		} catch (ClientProtocolException e) {
-			return TestConnectionResult.WRONG_ANSWER;
-		}
-		return TestConnectionResult.SUCCESS;
 	}
 
 	private final static String PROPFIND_CALENDAR_HOME_SET = XML_VERSION
 			+ "<d:propfind xmlns:d=\"DAV:\" xmlns:c=\"urn:ietf:params:xml:ns:caldav\"><d:prop><c:calendar-home-set/></d:prop></d:propfind>";
 
-	private List<String> getCalendarHomes(URI userPrincipal)
-			throws ClientProtocolException, SAXException, IOException,
-			AuthenticationException, FileNotFoundException {
+	private List<URI> getCalendarHomes(URI userPrincipal)
+			throws ClientProtocolException, IOException,
+			AuthenticationException, FileNotFoundException,
+			CaldavProtocolException {
 		HttpPropFind request = createPropFindRequest(userPrincipal,
 				PROPFIND_CALENDAR_HOME_SET, 0);
 		HttpResponse response = httpClient.execute(targetHost, request);
 		checkStatus(response);
-		CalendarHomeHandler calendarHomeHandler = new CalendarHomeHandler();
+		CalendarHomeHandler calendarHomeHandler = new CalendarHomeHandler(
+				userPrincipal);
 		parseXML(response, calendarHomeHandler);
-		return calendarHomeHandler.calendarHomeSet;
+		List<URI> result = calendarHomeHandler.calendarHomeSet;
+		if (BuildConfig.DEBUG) {
+			Log.d(TAG, result.size() + " calendar-home-set found in "
+					+ userPrincipal.toString());
+		}
+		return result;
 	}
 
 	private final static String PROPFIND_CALENDER_LIST = XML_VERSION
@@ -229,35 +281,59 @@ public class CaldavFacade {
 			+ "<cs:getctag /></d:prop></d:propfind>";
 
 	private List<Calendar> getCalendarsFromSet(URI calendarSet)
-			throws ClientProtocolException, SAXException, IOException,
-			AuthenticationException, FileNotFoundException {
+			throws ClientProtocolException, IOException,
+			CaldavProtocolException, AuthenticationException,
+			FileNotFoundException {
 		HttpPropFind request = createPropFindRequest(calendarSet,
 				PROPFIND_CALENDER_LIST, 1);
 		HttpResponse response = httpClient.execute(targetHost, request);
 		checkStatus(response);
 		CalendarsHandler calendarsHandler = new CalendarsHandler(calendarSet);
 		parseXML(response, calendarsHandler);
-		return calendarsHandler.calendars;
+		List<Calendar> result = calendarsHandler.calendars;
+		if (BuildConfig.DEBUG) {
+			Log.d(TAG,
+					result.size() + " calendars found in set "
+							+ calendarSet.toString());
+		}
+		return result;
 	}
 
+	/**
+	 * Discover CalDAV Calendars Mentioned in
+	 * http://tools.ietf.org/html/draft-daboo-srv-caldav-10#section-6 and
+	 * http://code.google.com/p/sabredav/wiki/BuildingACalDAVClient#Discovery
+	 * <ol>
+	 * <li>PROPFIND calendar-home-set on url
+	 * <li>PROPFIND DAV:current-user-principal or principal-URL on url
+	 * <li>PROPFIND calendar-home-set on current-user-principal or principal-URL
+	 * <li>PROPFIND displayname, resourcetype, getctag on CalendarHomeSets
+	 * </ol>
+	 * 
+	 * @return List of {@link Calendar}
+	 * @throws ClientProtocolException
+	 *             http protocol error
+	 * @throws IOException
+	 *             Connection lost
+	 * @throws URISyntaxException
+	 *             url in Constructor malformed
+	 * @throws CaldavProtocolException
+	 *             caldav protocol error
+	 */
 	public Iterable<Calendar> getCalendarList() throws ClientProtocolException,
 			IOException, URISyntaxException, ParserConfigurationException,
-			SAXException, CaldavProtocolException {
+			CaldavProtocolException {
 		try {
-
-			URI userPrincipal = getUserPrincipal();
-			Log.d(TAG, userPrincipal.toString());
-			List<String> calendarSets = getCalendarHomes(userPrincipal);
 			List<Calendar> calendars = new ArrayList<Calendar>();
-			for (String calendarSet : calendarSets) {
-				try {
-					URI calendarSetURI = new URI(calendarSet);
-					calendarSetURI = userPrincipal.resolve(calendarSetURI);
-					Log.d(TAG, "calendarSetURI : " + calendarSetURI.toString());
-					calendars.addAll(getCalendarsFromSet(calendarSetURI));
-				} catch (URISyntaxException e) {
-					// TODO: handle exception
-				}
+			calendars = forceGetCalendarsFromUri(this.url.toURI());
+			if (calendars.size() != 0) {
+				return calendars;
+			}
+			URI userPrincipal = getUserPrincipal();
+			List<URI> calendarSets = getCalendarHomes(userPrincipal);
+			for (URI calendarSet : calendarSets) {
+				List<Calendar> calendarSetCalendars = getCalendarsFromSet(calendarSet);
+				calendars.addAll(calendarSetCalendars);
 			}
 			return calendars;
 		} catch (AuthenticationException e) {
@@ -338,23 +414,21 @@ public class CaldavFacade {
 	}
 
 	private void parseXML(HttpResponse response, ContentHandler contentHandler)
-			throws IOException, AssertionError, ClientProtocolException {
+			throws IOException, CaldavProtocolException {
 		InputStream is = response.getEntity().getContent();
 		SAXParserFactory factory = SAXParserFactory.newInstance();
-		SAXParser parser;
-		XMLReader reader;
 		try {
-			parser = factory.newSAXParser();
-			reader = parser.getXMLReader();
+			SAXParser parser = factory.newSAXParser();
+			XMLReader reader = parser.getXMLReader();
 			reader.setContentHandler(contentHandler);
 			reader.parse(new InputSource(is));
 		} catch (ParserConfigurationException e) {
 			throw new AssertionError("ParserConfigurationException "
 					+ e.getMessage());
 		} catch (IllegalStateException e) {
-			throw new ClientProtocolException(e);
+			throw new CaldavProtocolException(e.getMessage());
 		} catch (SAXException e) {
-			throw new ClientProtocolException(e);
+			throw new CaldavProtocolException(e.getMessage());
 		}
 	}
 
@@ -371,7 +445,7 @@ public class CaldavFacade {
 		case 207:
 			return;
 		default:
-			throw new ClientProtocolException();
+			throw new ClientProtocolException("StatusCode: " + statusCode);
 		}
 	}
 

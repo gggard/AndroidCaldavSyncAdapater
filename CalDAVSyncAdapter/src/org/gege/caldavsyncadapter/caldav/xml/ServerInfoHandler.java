@@ -12,16 +12,14 @@ public class ServerInfoHandler extends DefaultHandler {
 	private static final String HREF = "href";
 	private static final String PRINCIPAL_URL = "principal-URL";
 	private static final String CURRENT_USER_PRINCIPAL = "current-user-principal";
-	public String currentUserPrincipal = null;
-	public String principalUrl = null;
-	public String calendarHomeSet = null;
-
-	private String inParentElement;
+	private final static List<String> TAGS = Arrays.asList(
+			CURRENT_USER_PRINCIPAL, PRINCIPAL_URL);
 	private StringBuilder stringBuilder = new StringBuilder();
+	private String inParentElement;
 	private String currentElement;
 
-	public final static List<String> TAGS = Arrays.asList(
-			CURRENT_USER_PRINCIPAL, PRINCIPAL_URL);
+	public String currentUserPrincipal = null;
+	public String principalUrl = null;
 
 	@Override
 	public void startElement(String uri, String localName, String qName,
