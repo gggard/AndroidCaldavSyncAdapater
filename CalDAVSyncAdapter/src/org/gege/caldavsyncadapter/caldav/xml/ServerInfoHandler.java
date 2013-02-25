@@ -28,6 +28,7 @@ public class ServerInfoHandler extends DefaultHandler {
 			inParentElement = localName;
 		}
 		currentElement = localName;
+		stringBuilder.setLength(0);
 	}
 
 	@Override
@@ -41,14 +42,16 @@ public class ServerInfoHandler extends DefaultHandler {
 	@Override
 	public void endElement(String uri, String localName, String qName)
 			throws SAXException {
-		if (TAGS.contains(inParentElement)) {
+		if (HREF.equals(currentElement) && TAGS.contains(inParentElement)) {
 			if (CURRENT_USER_PRINCIPAL.equals(inParentElement)) {
 				currentUserPrincipal = stringBuilder.toString();
 			} else {
 				principalUrl = stringBuilder.toString();
 			}
-			inParentElement = null;
-			stringBuilder.setLength(0);
 		}
+		if(TAGS.contains(localName)){
+			inParentElement = null;
+		}
+		currentElement = null;
 	}
 }
