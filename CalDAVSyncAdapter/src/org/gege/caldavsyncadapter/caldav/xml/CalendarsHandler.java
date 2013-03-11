@@ -69,15 +69,16 @@ public class CalendarsHandler extends DefaultHandler {
 			if (calendar != null) {
 				if (HREF.equals(localName)) {
 					String calendarUrl = stringBuilder.toString();
+					calendarUrl = calendarUrl.trim();
 					try {
 						URI calendarURI = new URI(calendarUrl);
 						calendar.setURI(homeURI.resolve(calendarURI));
 					} catch (URISyntaxException e) {
 						if (BuildConfig.DEBUG) {
-							Log.e(CalendarHomeHandler.class.getSimpleName(),
+							Log.e(CalendarsHandler.class.getSimpleName(),
 									"calendar-uri malformed: " + calendarUrl);
 						} else {
-							Log.e(CalendarHomeHandler.class.getSimpleName(),
+							Log.e(CalendarsHandler.class.getSimpleName(),
 									"uri malformed in href");
 						}
 					}
