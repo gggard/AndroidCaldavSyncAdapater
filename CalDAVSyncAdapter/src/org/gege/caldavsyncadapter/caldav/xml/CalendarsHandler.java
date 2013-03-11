@@ -52,7 +52,6 @@ public class CalendarsHandler extends DefaultHandler {
 			isCalendarResource = true;
 		}
 		currentElement = localName;
-		stringBuilder.setLength(0);
 	}
 
 	@Override
@@ -88,12 +87,12 @@ public class CalendarsHandler extends DefaultHandler {
 					calendar.setCTag(stringBuilder.toString());
 				}
 			}
+			stringBuilder.setLength(0);
 		} else if (RESPONSE.equals(localName)) {
 			if (isCalendarResource && isValidCalendar(calendar)) {
 				calendars.add(calendar);
 			}
 		}
-		currentElement = null;
 	}
 
 	private boolean isValidCalendar(Calendar calendar) {
