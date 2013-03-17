@@ -594,7 +594,7 @@ BufferedReader reader = new BufferedReader(new InputStreamReader(response.getEnt
 			NodeList children = item.getChildNodes();
 			for (int j=0 ; j<children.getLength() ; j++) {
 				Node node = children.item(j);
-				if (node.getNodeName().equalsIgnoreCase("href")) {
+				if (node.getLocalName().equalsIgnoreCase("href")) {
 					calendar.setURI(new URI(node.getTextContent()));
 				}
 			}
@@ -643,7 +643,7 @@ BufferedReader reader = new BufferedReader(new InputStreamReader(response.getEnt
 		DocumentBuilder builder = factory.newDocumentBuilder();
 		Document dom = builder.parse(new InputSource(new ByteArrayInputStream(body.getBytes("utf-8"))));
 		Element root = dom.getDocumentElement();
-		NodeList items = root.getElementsByTagName("displayname");
+		NodeList items = root.getElementsByTagNameNS("*", "displayname");
 		if (items.getLength() != 1) {
 			throw new CaldavProtocolException("None or multiple display name");
 		}
