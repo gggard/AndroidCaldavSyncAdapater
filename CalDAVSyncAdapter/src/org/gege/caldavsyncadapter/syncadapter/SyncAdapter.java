@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2012-2013, David Wiesner
+ * Copyright (c) 2012-2013, Gerald Garcia, David Wiesner, Timo Berger
  * 
  * This file is part of Andoid Caldav Sync Adapter Free.
  *
@@ -19,13 +19,14 @@
  * 
  */
 
+
 package org.gege.caldavsyncadapter.syncadapter;
 
 import java.io.IOException;
-import java.net.MalformedURLException;
+//import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.security.GeneralSecurityException;
+//import java.security.GeneralSecurityException;
 
 import javax.xml.parsers.ParserConfigurationException;
 
@@ -60,7 +61,7 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 
 	private static final String TAG = "SyncAdapter";
 	private AccountManager mAccountManager;
-	private Context mContext;
+//	private Context mContext;
 	
 	
 	public static final String[] CALENDAR_PROJECTION = new String[] {
@@ -71,13 +72,14 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 	    Calendars.CAL_SYNC1                       // 4
 	};
 	  
-	// The indices for the projection array above.
+/*	// The indices for the projection array above.
 	private static final int PROJECTION_ID_INDEX = 0;
 	private static final int PROJECTION_ACCOUNT_NAME_INDEX = 1;
 	private static final int PROJECTION_DISPLAY_NAME_INDEX = 2;
 	private static final int PROJECTION_OWNER_ACCOUNT_INDEX = 3;
+*/
 	
-	
+
 
 	private static final String[] EVENT_PROJECTION = new String[] {
 		Events._ID,
@@ -85,7 +87,7 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 		Events.SYNC_DATA1,
 		Events.CALENDAR_ID
 	};
-	
+
 	
 	
 	// ignore same CTag
@@ -100,7 +102,7 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 		super(context, autoInitialize);
 		
 		mAccountManager = AccountManager.get(context);
-		mContext = context;
+//		mContext = context;
 	}
 
 	@Override
@@ -162,21 +164,21 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 		for (CalendarEvent event : eventList) {
 			
 			try {
-			AndroidEvent androidEvent = getAndroidEvent(provider, event.getUri(), calendarUri);
-			
-
-			Log.d(TAG, "Event "+event.getUri().toString()+ " androidUri="+androidEvent);
-			
-			if (androidEvent == null) {
-				createAndroidEvent(provider, account, calendarUri, event);
-			} else {
-				if ((androidEvent.getETag() == null) || 
-						(!androidEvent.getETag().equals(event.getETag()))) {
-					updateAndroidEvent(provider, account, androidEvent, event);
-				}
+				AndroidEvent androidEvent = getAndroidEvent(provider, event.getUri(), calendarUri);
 				
-				tagAndroidEvent(provider, account, androidEvent);
-			}
+	
+				Log.d(TAG, "Event "+event.getUri().toString()+ " androidUri="+androidEvent);
+				
+				if (androidEvent == null) {
+					createAndroidEvent(provider, account, calendarUri, event);
+				} else {
+					if ((androidEvent.getETag() == null) || 
+							(!androidEvent.getETag().equals(event.getETag()))) {
+						updateAndroidEvent(provider, account, androidEvent, event);
+					}
+					
+					tagAndroidEvent(provider, account, androidEvent);
+				}
 			} catch (ParserException ex) {
 				Log.e(TAG, "Parser exception", ex);
 			} catch (CaldavProtocolException ex) {
@@ -195,8 +197,8 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 		String mSelectionClause = Events.SYNC_DATA2 +  "<> ?";
 		String[] mSelectionArgs = {"1"};
 		
-		provider.delete(asSyncAdapter(Events.CONTENT_URI, account.name, account.type), mSelectionClause, mSelectionArgs);	
-
+		Integer CountDeleted = provider.delete(asSyncAdapter(Events.CONTENT_URI, account.name, account.type), mSelectionClause, mSelectionArgs);	
+		Log.e(TAG, "deleted " + CountDeleted.toString() + " non existing events");
 	}
 
 	private void tagAndroidEvent(ContentProviderClient provider,
@@ -224,14 +226,25 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 	
 	private void updateAndroidEvent(ContentProviderClient provider,
 			Account account, AndroidEvent androidEvent, CalendarEvent event) throws ClientProtocolException, IOException, CaldavProtocolException, RemoteException, ParserException {
-		Log.i(TAG, "Updating calendar event for "+androidEvent.getUri());
+		boolean BodyFetched = event.fetchBody();
 		
-		event.fetchBody();
+		if (BodyFetched) {
+			ContentValues values = getContentValues(event, androidEvent.getCalendarUri());
 		
-		ContentValues values = getContentValues(event, androidEvent.getCalendarUri());
-		
-		provider.update(asSyncAdapter(androidEvent.getUri(), account.name, account.type), values, null, null);
-
+			Log.i(TAG, "Update calendar event: for "+androidEvent.getUri());
+			Log.i(TAG, values.toString());
+			Integer Rows = 0;
+			
+			/*
+			Rows = provider.update(asSyncAdapter(androidEvent.getUri(), account.name, account.type), values, null, null);
+			Log.i(TAG, "Updated calendar event: rows effected " + Rows.toString());
+			*/
+			
+			Rows = provider.delete(asSyncAdapter(androidEvent.getUri(), account.name, account.type), null, null);
+			Log.i(TAG, "Update calendar event / delete: rows effected " + Rows.toString());
+			Uri uri = provider.insert(asSyncAdapter(Events.CONTENT_URI, account.name, account.type), values);
+			Log.i(TAG, "Update calendar event / insert: " + uri);
+		}
 	}
 
 	private void dropAllEvents(Account account, ContentProviderClient provider,
@@ -251,22 +264,53 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 	private ContentValues getContentValues(CalendarEvent event, Uri calendarUri) {
 		ContentValues values = new ContentValues();
 		values.put(Events.DTSTART, event.getStartTime());
-		values.put(Events.DTEND, event.getEndTime());
+		values.put(Events.EVENT_TIMEZONE, event.getTimeZone());
+
+		Integer AllDay = event.getAllDay();
+		if (event.getRRule().isEmpty() && event.getRDate().isEmpty()) {
+			if (AllDay.equals(1)) {
+				values.put(Events.ALL_DAY, AllDay);
+			} //else {
+			values.put(Events.DTEND, event.getEndTime());
+			values.put(Events.EVENT_END_TIMEZONE, event.getTimeZone());
+			//}
+		} else {
+			if (AllDay.equals(1))
+				values.put(Events.ALL_DAY, AllDay);
+			//else
+			values.put(Events.DURATION, event.getDuration());
+		}
+		
 		values.put(Events.TITLE, event.getTitle());
 		values.put(Events.CALENDAR_ID, ContentUris.parseId(calendarUri));
-		values.put(Events.EVENT_TIMEZONE, event.getTimeZone());
+
 		values.put(Events._SYNC_ID, event.getUri().toString());
 		values.put(Events.SYNC_DATA1, event.getETag());
+		values.put(Events.DESCRIPTION, event.getDescription());
+		values.put(Events.EVENT_LOCATION, event.getLocation());
+		values.put(Events.ACCESS_LEVEL, event.getAccessLevel());
+		
+		if (event.getStatus() != null)
+			values.put(Events.STATUS, event.getStatus());
+
+		values.put(Events.RDATE, event.getRDate());
+		values.put(Events.RRULE, event.getRRule());
+		values.put(Events.EXRULE, event.getExRule());
+		values.put(Events.EXDATE, event.getExDate());
+		
 		return values;
 	}
 	
 	private void createAndroidEvent(ContentProviderClient provider, Account account, Uri calendarUri, CalendarEvent event) throws ClientProtocolException, IOException, CaldavProtocolException, RemoteException, ParserException {
-		event.fetchBody();
+		boolean BodyFetched = event.fetchBody();
 		
-		ContentValues values = getContentValues(event, calendarUri);
+		if (BodyFetched) {
+			ContentValues values = getContentValues(event, calendarUri);
 		
-		Uri uri = provider.insert(asSyncAdapter(Events.CONTENT_URI, account.name, account.type), values);
+			Uri uri = provider.insert(asSyncAdapter(Events.CONTENT_URI, account.name, account.type), values);
 		
+			Log.i(TAG, "Creating calendar event for " + uri.toString());
+		}
 	}
 
 	private Uri getOrCreateCalendarUri(Account account,
@@ -311,9 +355,35 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 		String[] selectionArgs = new String[] {caldavEventUri.toString()}; 
 		
 		Cursor cur = provider.query(uri, EVENT_PROJECTION, selection, selectionArgs, null);
+		//Cursor cur = provider.query(uri, null, selection, selectionArgs, null);
+		
 		
 		if (cur.getCount() == 0) return null;
 		cur.moveToNext();
+
+		/*if (true) {
+			String EVENT_TIMEZONE = cur.getString(cur.getColumnIndex(Events.EVENT_TIMEZONE));
+			String EVENT_END_TIMEZONE = cur.getString(cur.getColumnIndex(Events.EVENT_END_TIMEZONE));
+			long DTSTART = cur.getLong(cur.getColumnIndex(Events.DTSTART));
+			long DTEND = cur.getLong(cur.getColumnIndex(Events.DTEND));
+			String TITLE = cur.getString(cur.getColumnIndex(Events.TITLE));
+			String CALENDAR_ID = cur.getString(cur.getColumnIndex(Events.CALENDAR_ID));
+			String SYNC_ID = cur.getString(cur.getColumnIndex(Events._SYNC_ID));
+			String SYNC_DATA1 = cur.getString(cur.getColumnIndex(Events.SYNC_DATA1));
+			String DESCRIPTION = cur.getString(cur.getColumnIndex(Events.DESCRIPTION));
+			String EVENT_LOCATION = cur.getString(cur.getColumnIndex(Events.EVENT_LOCATION));
+			long ACCESS_LEVEL = cur.getLong(cur.getColumnIndex(Events.ACCESS_LEVEL));
+			
+			long STATUS = cur.getLong(cur.getColumnIndex(Events.STATUS));
+			
+			long LAST_DATE = cur.getLong(cur.getColumnIndex(Events.LAST_DATE));
+			String DURATION = cur.getString(cur.getColumnIndex(Events.DURATION));
+
+			String RDATE = cur.getString(cur.getColumnIndex(Events.RDATE));
+			String RRULE = cur.getString(cur.getColumnIndex(Events.RRULE));
+			String EXRULE = cur.getString(cur.getColumnIndex(Events.EXRULE));
+			String EXDATE= cur.getString(cur.getColumnIndex(Events.EXDATE));
+		}*/
 		
 		Uri returnedUri = ContentUris.withAppendedId(uri, cur.getLong(cur.getColumnIndex(Events._ID)) );
 		
@@ -344,7 +414,7 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 		return (cur.getCount() != 0);
 	}
 	
-static Uri getCalendarUri(Account account, ContentProviderClient provider, Calendar calendar) throws RemoteException {
+	static Uri getCalendarUri(Account account, ContentProviderClient provider, Calendar calendar) throws RemoteException {
 		
 		Cursor cur = null;
 		
@@ -368,30 +438,30 @@ static Uri getCalendarUri(Account account, ContentProviderClient provider, Calen
 		}
 	}
 	
-static String getCalendarCTag(ContentProviderClient provider, Uri calendarUri) throws RemoteException {
-	
-	Cursor cur = null;
-	
-	// Submit the query and get a Cursor object back. 
-	cur = provider.query(calendarUri, CALENDAR_PROJECTION, null, null, null);
-	
-	if (cur.getCount() == 0) {
-		return null;
-	} else {
-		cur.moveToNext();
-		String returnedCtag = cur.getString(cur.getColumnIndex(Calendars.CAL_SYNC1));
-		return returnedCtag;
+	static String getCalendarCTag(ContentProviderClient provider, Uri calendarUri) throws RemoteException {
+		
+		Cursor cur = null;
+		
+		// Submit the query and get a Cursor object back. 
+		cur = provider.query(calendarUri, CALENDAR_PROJECTION, null, null, null);
+		
+		if (cur.getCount() == 0) {
+			return null;
+		} else {
+			cur.moveToNext();
+			String returnedCtag = cur.getString(cur.getColumnIndex(Calendars.CAL_SYNC1));
+			return returnedCtag;
+		}
 	}
-}
 
-private void setCalendarCTag(Account account, ContentProviderClient provider,
-		Uri calendarUri, String cTag) throws RemoteException {
-	
-	ContentValues mUpdateValues = new ContentValues();
-	mUpdateValues.put(Calendars.CAL_SYNC1, cTag);
-	
-	provider.update(asSyncAdapter(calendarUri, account.name, account.type), mUpdateValues, null, null);
-}
+	private void setCalendarCTag(Account account, ContentProviderClient provider,
+			Uri calendarUri, String cTag) throws RemoteException {
+		
+		ContentValues mUpdateValues = new ContentValues();
+		mUpdateValues.put(Calendars.CAL_SYNC1, cTag);
+		
+		provider.update(asSyncAdapter(calendarUri, account.name, account.type), mUpdateValues, null, null);
+	}
 	
 	static Uri asSyncAdapter(Uri uri, String account, String accountType) {
 	    return uri.buildUpon()
@@ -401,3 +471,4 @@ private void setCalendarCTag(Account account, ContentProviderClient provider,
 	 }
 
 }
+
