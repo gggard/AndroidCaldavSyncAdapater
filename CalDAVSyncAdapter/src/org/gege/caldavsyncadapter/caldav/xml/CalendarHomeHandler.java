@@ -55,6 +55,7 @@ public class CalendarHomeHandler extends DefaultHandler {
 			isInCalendarHomeSet = true;
 		}
 		currentElement = localName;
+		stringBuilder.setLength(0);
 	}
 
 	@Override
@@ -83,10 +84,11 @@ public class CalendarHomeHandler extends DefaultHandler {
 							"uri malformed in calendar-home-set/href");
 				}
 			}
-			stringBuilder.setLength(0);
+			//stringBuilder.setLength(0);
 		}
 		if (CALENDAR_HOME_SET.equals(localName)) {
 			isInCalendarHomeSet = false;
 		}
+		currentElement=null;
 	}
 }

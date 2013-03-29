@@ -305,9 +305,10 @@ public class AuthenticatorActivity extends Activity {
 			
 			switch (result) {
 			
-			case SUCCESS_COLLECTION:
+			case SUCCESS:
+			//case SUCCESS_COLLECTION:
 
-			case SUCCESS_CALENDAR:
+			//case SUCCESS_CALENDAR:
 				final Account account = new Account(mUser, "org.gege.caldavsyncadapter.account");			
 				mAccountManager.addAccountExplicitly(account, mPassword, null);
 				mAccountManager.setUserData(account, Constants.USER_DATA_URL_KEY, mURL);

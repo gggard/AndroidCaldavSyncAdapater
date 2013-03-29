@@ -3032,6 +3032,9 @@ org.gege.caldavsyncadapter.caldav.EasySSLSocketFactory:
 org.gege.caldavsyncadapter.caldav.EasyX509TrustManager
 org.gege.caldavsyncadapter.caldav.entities.CalendarEvent:
     private static final java.lang.String TAG
+org.gege.caldavsyncadapter.caldav.xml.CalendarHomeHandler
+org.gege.caldavsyncadapter.caldav.xml.CalendarsHandler
+org.gege.caldavsyncadapter.caldav.xml.ServerInfoHandler
 org.gege.caldavsyncadapter.syncadapter.SyncAdapter:
     private static final java.lang.String TAG
     private static final int PROJECTION_ID_INDEX

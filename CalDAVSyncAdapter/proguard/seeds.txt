@@ -76,6 +76,8 @@ org.gege.caldavsyncadapter.R$string: int menu_forgot_password
 org.gege.caldavsyncadapter.R$string: int prompt_password
 org.gege.caldavsyncadapter.R$string: int prompt_url
 org.gege.caldavsyncadapter.R$string: int prompt_user
+org.gege.caldavsyncadapter.R$string: int success_calendar
+org.gege.caldavsyncadapter.R$string: int success_collection
 org.gege.caldavsyncadapter.R$string: int title_activity_authenticator
 org.gege.caldavsyncadapter.R$style: int AppBaseTheme
 org.gege.caldavsyncadapter.R$style: int AppTheme
