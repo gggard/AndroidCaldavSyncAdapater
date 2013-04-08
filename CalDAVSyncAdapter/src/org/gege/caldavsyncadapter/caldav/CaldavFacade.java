@@ -423,7 +423,7 @@ public class CaldavFacade {
 			for (int j = 0; j < children.getLength(); j++) {
 				Node childNode = children.item(j);
 				if ((childNode.getLocalName()!=null) && (childNode.getLocalName().equalsIgnoreCase("href"))) {
-					calendarEvent.setURI(new URI(childNode.getTextContent().trim()));
+					calendarEvent.setUri(new URI(childNode.getTextContent().trim()));
 				}
 			}
 
