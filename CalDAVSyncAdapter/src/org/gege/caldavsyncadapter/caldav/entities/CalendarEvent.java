@@ -121,7 +121,7 @@ public class CalendarEvent {
 			//	values.put(Events.ALL_DAY, AllDay);
 			values.put(Events.DURATION, this.getDuration());
 		}
-		Integer AllDay = this.getAllDay();
+		int AllDay = this.getAllDay();
 		values.put(Events.ALL_DAY, AllDay);
 		
 		values.put(Events.TITLE, this.getTitle());
@@ -176,7 +176,7 @@ public class CalendarEvent {
 					Dur Duration = new Dur(TRIGGER.getValue());
 					//if (ACTION.getValue().equals("DISPLAY"))
 					
-					Integer intDuration = Duration.getMinutes() + Duration.getHours() * 60 + Duration.getDays() * 60 * 24;
+					int intDuration = Duration.getMinutes() + Duration.getHours() * 60 + Duration.getDays() * 60 * 24;
 					
 					Reminder.put(Reminders.EVENT_ID, ContentUris.parseId(mAndroidUri));
 					Reminder.put(Reminders.METHOD, Reminders.METHOD_ALERT);
@@ -296,8 +296,8 @@ public class CalendarEvent {
 		return Result;
 	}
 	
-	private Integer getStatus() {
-		Integer Result = Events.STATUS_TENTATIVE;
+	private int getStatus() {
+		int Result = Events.STATUS_TENTATIVE;
 		String Value = "";
 		Property property = calendarComponent.getProperty(Property.STATUS);
 		if (property != null) {
@@ -439,12 +439,12 @@ public class CalendarEvent {
 				//Result1 = Result.getTime();
 				
 				//20130331T120000
-				Integer Year = Integer.parseInt(strDate.substring(0, 4));
-				Integer Month = Integer.parseInt(strDate.substring(4, 6)) - 1;
-				Integer Day = Integer.parseInt(strDate.substring(6, 8));
-				Integer Hour = Integer.parseInt(strDate.substring(9, 11));
-				Integer Minute = Integer.parseInt(strDate.substring(11, 13));
-				Integer Second = Integer.parseInt(strDate.substring(13, 15));
+				int Year = Integer.parseInt(strDate.substring(0, 4));
+				int Month = Integer.parseInt(strDate.substring(4, 6)) - 1;
+				int Day = Integer.parseInt(strDate.substring(6, 8));
+				int Hour = Integer.parseInt(strDate.substring(9, 11));
+				int Minute = Integer.parseInt(strDate.substring(11, 13));
+				int Second = Integer.parseInt(strDate.substring(13, 15));
 
 				// time in UTC
 				java.util.TimeZone jtz = java.util.TimeZone.getTimeZone("UTC");
@@ -456,7 +456,7 @@ public class CalendarEvent {
 				// get the timezone
 				String[] IDs = java.util.TimeZone.getAvailableIDs();
 				Boolean Found = false;
-				for (Integer i = 0; i < IDs.length; i++) {
+				for (int i = 0; i < IDs.length; i++) {
 					Found = Found || IDs[i].equals(strTimeZone);
 				}
 				if (Found) {
@@ -589,28 +589,28 @@ public class CalendarEvent {
 			long End   = this.getEndTime();
 			long Duration = (End - Start) / 1000; // get rid of the milliseconds, they cann't be described with RFC2445-Duration
 			
-			Integer Days = (int) Math.ceil(Duration / 24 / 60 / 60);
-			Integer Hours = (int) Math.ceil((Duration - (Days * 24 * 60 * 60)) / 60 / 60);
-			Integer Minutes = (int) Math.ceil((Duration - (Days * 24 * 60 * 60) - (Hours * 60 * 60)) / 60);
-			Integer Seconds = (int) (Duration - (Days * 24 * 60 * 60) - (Hours * 60 * 60) - (Minutes * 60));
+			int Days = (int) Math.ceil(Duration / 24 / 60 / 60);
+			int Hours = (int) Math.ceil((Duration - (Days * 24 * 60 * 60)) / 60 / 60);
+			int Minutes = (int) Math.ceil((Duration - (Days * 24 * 60 * 60) - (Hours * 60 * 60)) / 60);
+			int Seconds = (int) (Duration - (Days * 24 * 60 * 60) - (Hours * 60 * 60) - (Minutes * 60));
 		
 			if (Days > 0)
-				Result += Days.toString() + "D";
+				Result += String.valueOf(Days) + "D";
 			
 			if (!mAllDay) {
 				//if a ALL_DAY event occurs, there is no need for hours, minutes and seconds (Android doesn't understand them)
 				Result += "T";
-				Result += Hours.toString() + "H";
-				Result += Minutes.toString() + "M";
-				Result += Seconds.toString() + "S";
+				Result += String.valueOf(Hours) + "H";
+				Result += String.valueOf(Minutes) + "M";
+				Result += String.valueOf(Seconds) + "S";
 			}
 		}
 		
 		return Result;
 	}
 	
-	private Integer getAllDay() {
-		Integer Result = 0;
+	private int getAllDay() {
+		int Result = 0;
 
 		if (mAllDay)
 			Result = 1;
