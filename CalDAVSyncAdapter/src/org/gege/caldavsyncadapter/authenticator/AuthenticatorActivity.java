@@ -176,28 +176,12 @@ public class AuthenticatorActivity extends Activity {
 		boolean cancel = false;
 		View focusView = null;
 
-		// Check for a valid password.
-		if (TextUtils.isEmpty(mPassword)) {
-			mPasswordView.setError(getString(R.string.error_field_required));
-			focusView = mPasswordView;
-			cancel = true;
-		} else if (mPassword.length() < 4) {
-			mPasswordView.setError(getString(R.string.error_invalid_password));
-			focusView = mPasswordView;
-			cancel = true;
-		}
-
 		// Check for a valid email address.
 		if (TextUtils.isEmpty(mUser)) {
 			mUserView.setError(getString(R.string.error_field_required));
 			focusView = mUserView;
 			cancel = true;
 		} 
-		//else if (!mUser.contains("@")) {
-		//	mUserView.setError(getString(R.string.error_invalid_email));
-		//	focusView = mUserView;
-		//	cancel = true;
-		//}
 
 		if (cancel) {
 			// There was an error; don't attempt login and focus the first
@@ -395,10 +379,6 @@ public class AuthenticatorActivity extends Activity {
 					mURLView.requestFocus();
 					break;
 				}
-				
-				
-				
-			
 		}
 
 		@Override
