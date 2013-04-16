@@ -39,6 +39,12 @@ import net.fortuna.ical4j.model.PropertyList;
 import net.fortuna.ical4j.model.TimeZone;
 import net.fortuna.ical4j.model.component.VEvent;
 import net.fortuna.ical4j.model.component.VTimeZone;
+import net.fortuna.ical4j.model.parameter.Cn;
+import net.fortuna.ical4j.model.parameter.CuType;
+import net.fortuna.ical4j.model.parameter.PartStat;
+import net.fortuna.ical4j.model.parameter.Role;
+import net.fortuna.ical4j.model.property.Clazz;
+import net.fortuna.ical4j.model.property.Status;
 import net.fortuna.ical4j.util.CompatibilityHints;
 import org.apache.http.client.ClientProtocolException;
 import org.gege.caldavsyncadapter.android.entities.AndroidEvent;
@@ -219,11 +225,11 @@ public class CalendarEvent {
 		ContentValues Attendee = null;
 		
 		ParameterList Parameters = property.getParameters();
-		Parameter CN       = Parameters.getParameter("CN");
-		Parameter ROLE     = Parameters.getParameter("ROLE");
-		Parameter CUTYPE   = Parameters.getParameter("CUTYPE");
+		Parameter CN       = Parameters.getParameter(Cn.CN);
+		Parameter ROLE     = Parameters.getParameter(Role.ROLE);
+		Parameter CUTYPE   = Parameters.getParameter(CuType.CUTYPE);
 		//Parameter RSVP     = Parameters.getParameter("RSVP");
-		Parameter PARTSTAT = Parameters.getParameter("PARTSTAT");
+		Parameter PARTSTAT = Parameters.getParameter(PartStat.PARTSTAT);
 
 		String strCN = "";
 		String strROLE = "";
@@ -282,14 +288,14 @@ public class CalendarEvent {
 	private long getAccessLevel() {
 		long Result = Events.ACCESS_DEFAULT;
 		String Value = "";
-		Property property = calendarComponent.getProperty("CLASS");
+		Property property = calendarComponent.getProperty(Property.CLASS);
 		if (property != null) {
 			Value = property.getValue();
-			if (Value.equals("PUBLIC"))
+			if (Value.equals(Clazz.PUBLIC))
 				Result = Events.ACCESS_PUBLIC;
-			else if (Value.equals("PRIVATE"))
+			else if (Value.equals(Clazz.PRIVATE))
 				Result = Events.ACCESS_PRIVATE;
-			else if (Value.equals("CONFIDENTIAL"))
+			else if (Value.equals(Clazz.CONFIDENTIAL))
 				Result = Events.ACCESS_PRIVATE; // should be ACCESS_CONFIDENTIAL, but is not implemented within Android
 		}
 		
@@ -302,11 +308,11 @@ public class CalendarEvent {
 		Property property = calendarComponent.getProperty(Property.STATUS);
 		if (property != null) {
 			Value = property.getValue();
-			if (Value.equals("CONFIRMED"))
+			if (Value.equals(Status.VEVENT_CONFIRMED))
 				Result = Events.STATUS_CONFIRMED;
-			else if (Value.equals("CANCELLED"))
+			else if (Value.equals(Status.VEVENT_CANCELLED))
 				Result = Events.STATUS_CANCELED;
-			else if (Value.equals("TENTATIVE"))
+			else if (Value.equals(Status.VEVENT_TENTATIVE))
 				Result = Events.STATUS_TENTATIVE;
 		}
 		
