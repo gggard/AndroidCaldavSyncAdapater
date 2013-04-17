@@ -141,7 +141,7 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 					Log.d(TAG, "CTag has not changed, nothing to do");
 				}
 				
-				this.CheckDirtyAndroidEvents(provider, account, calendarUri);
+				this.checkDirtyAndroidEvents(provider, account, calendarUri);
 			}
         /*} catch (final AuthenticatorException e) {
             syncResult.stats.numParseExceptions++;
@@ -163,6 +163,7 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
             Log.e(TAG, "JSONException", e);*/
 		} catch (Exception e) {
 			Log.e(TAG, "Updating calendar exception " + e.getClass().getName(), e);
+            syncResult.stats.numParseExceptions++;
 			throw new RuntimeException(e);
 		}
 	}
@@ -178,12 +179,12 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 		
 		Iterable<CalendarEvent> eventList = facade.getCalendarEvents(calendar);
 		
-		int RowInsert = 0;
-		int RowUpdate = 0;
-		int RowTag = 0;
-		int RowDelete = 0;
-		int RowUntag = 0;
-		int RowSkip = 0;
+		int rowInsert = 0;
+		int rowUpdate = 0;
+		int rawTag = 0;
+		int rowDelete = 0;
+		int rowUntag = 0;
+		int rowSkip = 0;
 		
 		for (CalendarEvent event : eventList) {
 			
@@ -195,51 +196,53 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 				
 				if (androidEvent == null) {
 					if (createAndroidEvent(provider, account, calendarUri, event)) {
-						RowInsert += 1;
+						rowInsert += 1;
 						androidEvent = getAndroidEvent(provider, event.getUri(), calendarUri);
 					} else {
-						RowSkip += 1;
+						rowSkip += 1;
 					}
 				} else {
 					Log.d(TAG, "Event compare: " + androidEvent.getETag().toString() + " <> " + event.getETag().toString());
 					if ((androidEvent.getETag() == null) || (!androidEvent.getETag().equals(event.getETag()))) {
 						if (updateAndroidEvent(provider, account, androidEvent, event))
-							RowUpdate += 1;
+							rowUpdate += 1;
 					}
 				}
 				if (androidEvent != null)
 					if (tagAndroidEvent(provider, account, androidEvent))
-						RowTag += 1;
+						rawTag += 1;
 				
 				
 			} catch (ParserException ex) {
 				Log.e(TAG, "Parser exception", ex);
+				stats.numParseExceptions++;
 			} catch (CaldavProtocolException ex) {
 				Log.e(TAG, "Caldav exception", ex);
+				stats.numParseExceptions++;
 			}
 		}
 		
-		RowDelete = deleteUntaggedEvents(provider, account, calendarUri);
-		RowUntag = untagAndroidEvents(provider, account, calendarUri);
+		rowDelete = deleteUntaggedEvents(provider, account, calendarUri);
+		rowUntag = untagAndroidEvents(provider, account, calendarUri);
 
 		Log.i(TAG,"Statistiks for Calendar: " + calendar.getURI().toString());
 		Log.i(TAG,"Statistiks for AndroidCalendar: " + calendarUri.toString());
-		Log.i(TAG,"Rows inserted: " + String.valueOf(RowInsert));
-		Log.i(TAG,"Rows updated:  " + String.valueOf(RowUpdate));
-		Log.i(TAG,"Rows tagged:   " + String.valueOf(RowTag));
-		Log.i(TAG,"Rows deleted:  " + String.valueOf(RowDelete));
-		Log.i(TAG,"Rows reseted:  " + String.valueOf(RowUntag));
-		Log.i(TAG,"Rows skipped:  " + String.valueOf(RowSkip));
+		Log.i(TAG,"Rows inserted: " + String.valueOf(rowInsert));
+		Log.i(TAG,"Rows updated:  " + String.valueOf(rowUpdate));
+		Log.i(TAG,"Rows tagged:   " + String.valueOf(rawTag));
+		Log.i(TAG,"Rows deleted:  " + String.valueOf(rowDelete));
+		Log.i(TAG,"Rows reseted:  " + String.valueOf(rowUntag));
+		Log.i(TAG,"Rows skipped:  " + String.valueOf(rowSkip));
 		
-		stats.numInserts += RowInsert;
-		stats.numUpdates += RowUpdate;
-		stats.numDeletes += RowDelete;
-		stats.numSkippedEntries += RowSkip;
-		stats.numEntries += RowInsert + RowUpdate + RowDelete;
+		stats.numInserts += rowInsert;
+		stats.numUpdates += rowUpdate;
+		stats.numDeletes += rowDelete;
+		stats.numSkippedEntries += rowSkip;
+		stats.numEntries += rowInsert + rowUpdate + rowDelete;
 
 	}
 	
-	private boolean CheckDirtyAndroidEvents(ContentProviderClient provider, Account account, Uri calendarUri) {
+	private boolean checkDirtyAndroidEvents(ContentProviderClient provider, Account account, Uri calendarUri) {
 		boolean Result = false;
 		Cursor cur = null;
 		Long EventID;
