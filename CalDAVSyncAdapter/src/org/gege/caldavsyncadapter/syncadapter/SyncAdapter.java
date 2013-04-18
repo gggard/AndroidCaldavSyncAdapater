@@ -33,6 +33,7 @@ import net.fortuna.ical4j.data.ParserException;
 
 import org.apache.http.ParseException;
 import org.apache.http.client.ClientProtocolException;
+import org.gege.caldavsyncadapter.CalendarColors;
 import org.gege.caldavsyncadapter.Constants;
 import org.gege.caldavsyncadapter.android.entities.AndroidEvent;
 import org.gege.caldavsyncadapter.caldav.CaldavFacade;
@@ -542,7 +543,10 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 			contentValues.put(Calendars.SYNC_EVENTS, 1);
 			contentValues.put(Calendars.CALENDAR_ACCESS_LEVEL, Calendars.CAL_ACCESS_OWNER);
 			
-			
+			// find a color
+			int index = calendarCount(account, provider);
+			index = index % CalendarColors.colors.length;
+			contentValues.put(Calendars.CALENDAR_COLOR, CalendarColors.colors[index]);
 
 			returnedCalendarUri = provider.insert(asSyncAdapter(Calendars.CONTENT_URI, account.name, account.type), contentValues);
 
@@ -626,7 +630,23 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 		
 		return Result;
 	}
-	
+
+	static int calendarCount(Account account, ContentProviderClient provider) throws RemoteException {
+		int Result = 0;
+		Cursor cur = null;
+		
+		Uri uri = Calendars.CONTENT_URI;   
+		String selection = "";
+		String[] selectionArgs = new String[] {}; 
+		// Submit the query and get a Cursor object back. 
+		cur = provider.query(uri, CALENDAR_PROJECTION, selection, selectionArgs, null);
+		
+		Result = cur.getCount();
+		cur.close();
+		
+		return Result;
+	}
+
 	private static Uri getCalendarUri(Account account, ContentProviderClient provider, Calendar calendar) throws RemoteException {
 		Uri Result = null;
 		Cursor cur = null;
