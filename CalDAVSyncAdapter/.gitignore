@@ -1,6 +1,6 @@
-gen/
+gen
 proguard/
-bin/
+bin
 local.properties
 
 # Ant
