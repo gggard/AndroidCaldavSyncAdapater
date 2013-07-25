@@ -74,6 +74,7 @@ import org.gege.caldavsyncadapter.caldav.http.HttpPropFind;
 import org.gege.caldavsyncadapter.caldav.xml.CalendarHomeHandler;
 import org.gege.caldavsyncadapter.caldav.xml.CalendarsHandler;
 import org.gege.caldavsyncadapter.caldav.xml.ServerInfoHandler;
+import org.gege.caldavsyncadapter.syncadapter.notifications.NotificationsHelper;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
@@ -83,6 +84,7 @@ import org.xml.sax.InputSource;
 import org.xml.sax.SAXException;
 import org.xml.sax.XMLReader;
 
+import android.content.Context;
 import android.util.Log;
 
 public class CaldavFacade {
@@ -169,6 +171,7 @@ public class CaldavFacade {
 	 * TestConnectionResult without throwing an exception or only throw checked
 	 * exceptions so you don't have to check the result of this function AND
 	 * handle the exceptions
+	 * @param context 
 	 * 
 	 * @return {@link TestConnectionResult}
 	 * @throws HttpHostConnectException
@@ -183,7 +186,7 @@ public class CaldavFacade {
 		Log.d(TAG, "start testConnection ");
 		try {
 			List<Calendar> calendars = new ArrayList<Calendar>();
-			calendars = forceGetCalendarsFromUri(url.toURI());
+			calendars = forceGetCalendarsFromUri(null, url.toURI());
 			if (calendars.size() != 0) {
 				return TestConnectionResult.SUCCESS;
 			}
@@ -211,19 +214,43 @@ public class CaldavFacade {
 		return TestConnectionResult.SUCCESS;
 	}
 
-	private List<Calendar> forceGetCalendarsFromUri(URI uri)
+	/**
+	 * @param context May be null if no notification is needed
+	 * @param uri
+	 * @return
+	 * @throws AuthenticationException
+	 * @throws FileNotFoundException
+	 */
+	private List<Calendar> forceGetCalendarsFromUri(Context context, URI uri)
 			throws AuthenticationException, FileNotFoundException {
 		List<Calendar> calendars = new ArrayList<Calendar>();
 		Exception exception = null;
 		try {
 			calendars = getCalendarsFromSet(uri);
 		} catch (ClientProtocolException e) {
+			if (context != null) {
+				NotificationsHelper.signalSyncErrors(context, "Caldav sync problem", e.getMessage());
+				NotificationsHelper.getCurrentSyncLog().addException(e);
+			}
 			exception = e;
 		} catch (FileNotFoundException e) {
+			if (context != null) {
+				NotificationsHelper.signalSyncErrors(context, "Caldav sync problem", e.getMessage());
+				NotificationsHelper.getCurrentSyncLog().addException(e);
+			}
 			throw e;
 		} catch (IOException e) {
+			if (context != null) {
+				NotificationsHelper.signalSyncErrors(context, "Caldav sync problem", e.getMessage());
+				NotificationsHelper.getCurrentSyncLog().addException(e);
+			}
 			exception = e;
 		} catch (CaldavProtocolException e) {
+
+			if (context != null) {
+				NotificationsHelper.signalSyncErrors(context, "Caldav sync problem", e.getMessage());
+				NotificationsHelper.getCurrentSyncLog().addException(e);
+			}
 			exception = e;
 		}
 		if (exception != null && BuildConfig.DEBUG) {
@@ -330,6 +357,7 @@ public class CaldavFacade {
 	 * <li>PROPFIND calendar-home-set on current-user-principal or principal-URL
 	 * <li>PROPFIND displayname, resourcetype, getctag on CalendarHomeSets
 	 * </ol>
+	 * @param context 
 	 * 
 	 * @return List of {@link Calendar}
 	 * @throws ClientProtocolException
@@ -341,12 +369,12 @@ public class CaldavFacade {
 	 * @throws CaldavProtocolException
 	 *             caldav protocol error
 	 */
-	public Iterable<Calendar> getCalendarList() throws ClientProtocolException,
+	public Iterable<Calendar> getCalendarList(Context context) throws ClientProtocolException,
 			IOException, URISyntaxException, ParserConfigurationException,
 			CaldavProtocolException {
 		try {
 			List<Calendar> calendars = new ArrayList<Calendar>();
-			calendars = forceGetCalendarsFromUri(this.url.toURI());
+			calendars = forceGetCalendarsFromUri(context, this.url.toURI());
 			if (calendars.size() != 0) {
 				return calendars;
 			}

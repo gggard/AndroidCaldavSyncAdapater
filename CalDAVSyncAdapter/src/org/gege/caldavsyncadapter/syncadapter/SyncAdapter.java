@@ -40,6 +40,7 @@ import org.gege.caldavsyncadapter.caldav.CaldavFacade;
 import org.gege.caldavsyncadapter.caldav.CaldavProtocolException;
 import org.gege.caldavsyncadapter.caldav.entities.Calendar;
 import org.gege.caldavsyncadapter.caldav.entities.CalendarEvent;
+import org.gege.caldavsyncadapter.syncadapter.notifications.NotificationsHelper;
 import org.xml.sax.SAXException;
 
 import android.accounts.Account;
@@ -120,7 +121,7 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 		
 		try {
 			CaldavFacade facade = new CaldavFacade(account.name, mAccountManager.getPassword(account), url);
-			calendarList = facade.getCalendarList();
+			calendarList = facade.getCalendarList(getContext());
 			
 			for (Calendar calendar : calendarList) {
 				Log.i(TAG, "Detected calendar name="+calendar.getDisplayName()+" URI="+calendar.getURI());
@@ -141,7 +142,7 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 					Log.d(TAG, "CTag has not changed, nothing to do");
 				}
 				
-				int RowDirty = this.CheckDirtyAndroidEvents(provider, account, calendarUri);
+				int RowDirty = this.checkDirtyAndroidEvents(provider, account, calendarUri);
 				Log.i(TAG,"Rows dirty:    " + String.valueOf(RowDirty));
 			}
         /*} catch (final AuthenticatorException e) {
@@ -152,19 +153,26 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
         } catch (final IOException e) {
             Log.e(TAG, "IOException", e);
             syncResult.stats.numIoExceptions++;
-        /*} catch (final AuthenticationException e) {
+            NotificationsHelper.signalSyncErrors(getContext(), "Caldav sync error (IO)", e.getMessage());
+            NotificationsHelper.getCurrentSyncLog().addException(e);
+            /*} catch (final AuthenticationException e) {
             //mAccountManager.invalidateAuthToken(Constants.ACCOUNT_TYPE, authtoken);
             syncResult.stats.numAuthExceptions++;
             Log.e(TAG, "AuthenticationException", e);*/
         } catch (final ParseException e) {
             syncResult.stats.numParseExceptions++;
             Log.e(TAG, "ParseException", e);
+            NotificationsHelper.signalSyncErrors(getContext(), "Caldav sync error (parsing)", e.getMessage());
+            NotificationsHelper.getCurrentSyncLog().addException(e);
         /*} catch (final JSONException e) {
             syncResult.stats.numParseExceptions++;
             Log.e(TAG, "JSONException", e);*/
 		} catch (Exception e) {
 			Log.e(TAG, "Updating calendar exception " + e.getClass().getName(), e);
-			throw new RuntimeException(e);
+            syncResult.stats.numParseExceptions++;
+            NotificationsHelper.signalSyncErrors(getContext(), "Caldav sync error (general)", e.getMessage());
+            NotificationsHelper.getCurrentSyncLog().addException(e);
+			//throw new RuntimeException(e);
 		}
 	}
 
@@ -179,12 +187,12 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 		
 		Iterable<CalendarEvent> eventList = facade.getCalendarEvents(calendar);
 		
-		int RowInsert = 0;
-		int RowUpdate = 0;
-		int RowTag = 0;
-		int RowDelete = 0;
-		int RowUntag = 0;
-		int RowSkip = 0;
+		int rowInsert = 0;
+		int rowUpdate = 0;
+		int rawTag = 0;
+		int rowDelete = 0;
+		int rowUntag = 0;
+		int rowSkip = 0;
 		
 		for (CalendarEvent event : eventList) {
 			
@@ -195,51 +203,59 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 				
 				if (androidEvent == null) {
 					if (createAndroidEvent(provider, account, calendarUri, event)) {
-						RowInsert += 1;
+						rowInsert += 1;
 						androidEvent = getAndroidEvent(provider, event.getUri(), calendarUri);
 					} else {
-						RowSkip += 1;
+						rowSkip += 1;
 					}
 				} else {
 					Log.d(TAG, "Event compare: " + androidEvent.getETag().toString() + " <> " + event.getETag().toString());
 					if ((androidEvent.getETag() == null) || (!androidEvent.getETag().equals(event.getETag()))) {
 						if (updateAndroidEvent(provider, account, androidEvent, event))
-							RowUpdate += 1;
+							rowUpdate += 1;
 					}
 				}
 				if (androidEvent != null)
 					if (tagAndroidEvent(provider, account, androidEvent))
-						RowTag += 1;
+						rawTag += 1;
 				
 				
 			} catch (ParserException ex) {
 				Log.e(TAG, "Parser exception", ex);
+				stats.numParseExceptions++;
+
+	            NotificationsHelper.signalSyncErrors(getContext(), "Caldav sync error (parsing)", ex.getMessage());
+	            NotificationsHelper.getCurrentSyncLog().addException(ex);
 			} catch (CaldavProtocolException ex) {
 				Log.e(TAG, "Caldav exception", ex);
+				stats.numParseExceptions++;
+
+	            NotificationsHelper.signalSyncErrors(getContext(), "Caldav sync error (caldav)", ex.getMessage());
+	            NotificationsHelper.getCurrentSyncLog().addException(ex);
 			}
 		}
 		
-		RowDelete = deleteUntaggedEvents(provider, account, calendarUri);
-		RowUntag = untagAndroidEvents(provider, account, calendarUri);
+		rowDelete = deleteUntaggedEvents(provider, account, calendarUri);
+		rowUntag = untagAndroidEvents(provider, account, calendarUri);
 
 		Log.i(TAG,"Statistiks for Calendar: " + calendar.getURI().toString());
 		Log.i(TAG,"Statistiks for AndroidCalendar: " + calendarUri.toString());
-		Log.i(TAG,"Rows inserted: " + String.valueOf(RowInsert));
-		Log.i(TAG,"Rows updated:  " + String.valueOf(RowUpdate));
-		Log.i(TAG,"Rows tagged:   " + String.valueOf(RowTag));
-		Log.i(TAG,"Rows deleted:  " + String.valueOf(RowDelete));
-		Log.i(TAG,"Rows reseted:  " + String.valueOf(RowUntag));
-		Log.i(TAG,"Rows skipped:  " + String.valueOf(RowSkip));
+		Log.i(TAG,"Rows inserted: " + String.valueOf(rowInsert));
+		Log.i(TAG,"Rows updated:  " + String.valueOf(rowUpdate));
+		Log.i(TAG,"Rows tagged:   " + String.valueOf(rawTag));
+		Log.i(TAG,"Rows deleted:  " + String.valueOf(rowDelete));
+		Log.i(TAG,"Rows reseted:  " + String.valueOf(rowUntag));
+		Log.i(TAG,"Rows skipped:  " + String.valueOf(rowSkip));
 		
-		stats.numInserts += RowInsert;
-		stats.numUpdates += RowUpdate;
-		stats.numDeletes += RowDelete;
-		stats.numSkippedEntries += RowSkip;
-		stats.numEntries += RowInsert + RowUpdate + RowDelete;
+		stats.numInserts += rowInsert;
+		stats.numUpdates += rowUpdate;
+		stats.numDeletes += rowDelete;
+		stats.numSkippedEntries += rowSkip;
+		stats.numEntries += rowInsert + rowUpdate + rowDelete;
 
 	}
 	
-	private int CheckDirtyAndroidEvents(ContentProviderClient provider, Account account, Uri calendarUri) {
+	private int checkDirtyAndroidEvents(ContentProviderClient provider, Account account, Uri calendarUri) {
 		//boolean Result = false;
 		Cursor curEvent = null;
 		Cursor curAttendee = null;
@@ -548,6 +564,7 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 			index = index % CalendarColors.colors.length;
 			contentValues.put(Calendars.CALENDAR_COLOR, CalendarColors.colors[index]);
 
+
 			returnedCalendarUri = provider.insert(asSyncAdapter(Calendars.CONTENT_URI, account.name, account.type), contentValues);
 
 			long newCalendarId = ContentUris.parseId(returnedCalendarUri);
@@ -647,6 +664,19 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 		return Result;
 	}
 
+	static int calendarCount(Account account, ContentProviderClient provider) throws RemoteException {
+		
+		Cursor cur = null;
+		
+		Uri uri = Calendars.CONTENT_URI;   
+		String selection = "";
+		String[] selectionArgs = new String[] {}; 
+		// Submit the query and get a Cursor object back. 
+		cur = provider.query(uri, CALENDAR_PROJECTION, selection, selectionArgs, null);
+		
+		return cur.getCount();
+	}
+	
 	private static Uri getCalendarUri(Account account, ContentProviderClient provider, Calendar calendar) throws RemoteException {
 		Uri Result = null;
 		Cursor cur = null;
