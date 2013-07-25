@@ -6,11 +6,6 @@ local.properties
 # Ant
 build.xml
 
-# Eclipse
-.classpath
-.project
-.settings
-
 # Android Studio
 .idea
 CalDAVSyncAdapter.iml

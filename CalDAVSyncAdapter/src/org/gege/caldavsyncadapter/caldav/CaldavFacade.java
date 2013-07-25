@@ -230,26 +230,26 @@ public class CaldavFacade {
 		} catch (ClientProtocolException e) {
 			if (context != null) {
 				NotificationsHelper.signalSyncErrors(context, "Caldav sync problem", e.getMessage());
-				NotificationsHelper.getCurrentSyncLog().addException(e);
+				//NotificationsHelper.getCurrentSyncLog().addException(e);
 			}
 			exception = e;
 		} catch (FileNotFoundException e) {
 			if (context != null) {
 				NotificationsHelper.signalSyncErrors(context, "Caldav sync problem", e.getMessage());
-				NotificationsHelper.getCurrentSyncLog().addException(e);
+				//NotificationsHelper.getCurrentSyncLog().addException(e);
 			}
 			throw e;
 		} catch (IOException e) {
 			if (context != null) {
 				NotificationsHelper.signalSyncErrors(context, "Caldav sync problem", e.getMessage());
-				NotificationsHelper.getCurrentSyncLog().addException(e);
+				//NotificationsHelper.getCurrentSyncLog().addException(e);
 			}
 			exception = e;
 		} catch (CaldavProtocolException e) {
 
 			if (context != null) {
 				NotificationsHelper.signalSyncErrors(context, "Caldav sync problem", e.getMessage());
-				NotificationsHelper.getCurrentSyncLog().addException(e);
+				//NotificationsHelper.getCurrentSyncLog().addException(e);
 			}
 			exception = e;
 		}

@@ -11,7 +11,8 @@ import android.support.v4.app.TaskStackBuilder;
 
 public class NotificationsHelper {
 
-	static SyncLog currentSyncLog = new SyncLog();
+	/*static SyncLog currentSyncLog = new SyncLog();
+	 doesn't exist */
 	
 	public static void signalSyncErrors(Context context, String title, String text) {
 		NotificationCompat.Builder mBuilder =
@@ -21,7 +22,7 @@ public class NotificationsHelper {
 		        .setContentText(text);
 		
 		// Creates an explicit intent for an Activity in your app
-		Intent resultIntent = new Intent(context, SyncStatusReportActivity.class);
+/*		Intent resultIntent = new Intent(context, SyncStatusReportActivity.class);
 
 		// The stack builder object will contain an artificial back stack for the
 		// started Activity.
@@ -38,7 +39,7 @@ public class NotificationsHelper {
 		            PendingIntent.FLAG_UPDATE_CURRENT
 		        );
 		mBuilder.setContentIntent(resultPendingIntent);
-		
+*/		
 		
 		NotificationManager mNotificationManager =
 			    (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
@@ -48,8 +49,8 @@ public class NotificationsHelper {
 		mNotificationManager.notify(mId, mBuilder.build());
 	}
 
-	public static SyncLog getCurrentSyncLog() {
+	/*public static SyncLog getCurrentSyncLog() {
 		return currentSyncLog;
-	}
+	}*/
 	
 }

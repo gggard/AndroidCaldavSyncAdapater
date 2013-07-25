@@ -154,7 +154,7 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
             Log.e(TAG, "IOException", e);
             syncResult.stats.numIoExceptions++;
             NotificationsHelper.signalSyncErrors(getContext(), "Caldav sync error (IO)", e.getMessage());
-            NotificationsHelper.getCurrentSyncLog().addException(e);
+            //NotificationsHelper.getCurrentSyncLog().addException(e);
             /*} catch (final AuthenticationException e) {
             //mAccountManager.invalidateAuthToken(Constants.ACCOUNT_TYPE, authtoken);
             syncResult.stats.numAuthExceptions++;
@@ -163,7 +163,7 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
             syncResult.stats.numParseExceptions++;
             Log.e(TAG, "ParseException", e);
             NotificationsHelper.signalSyncErrors(getContext(), "Caldav sync error (parsing)", e.getMessage());
-            NotificationsHelper.getCurrentSyncLog().addException(e);
+            //NotificationsHelper.getCurrentSyncLog().addException(e);
         /*} catch (final JSONException e) {
             syncResult.stats.numParseExceptions++;
             Log.e(TAG, "JSONException", e);*/
@@ -171,7 +171,7 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 			Log.e(TAG, "Updating calendar exception " + e.getClass().getName(), e);
             syncResult.stats.numParseExceptions++;
             NotificationsHelper.signalSyncErrors(getContext(), "Caldav sync error (general)", e.getMessage());
-            NotificationsHelper.getCurrentSyncLog().addException(e);
+            //NotificationsHelper.getCurrentSyncLog().addException(e);
 			//throw new RuntimeException(e);
 		}
 	}
@@ -225,13 +225,13 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 				stats.numParseExceptions++;
 
 	            NotificationsHelper.signalSyncErrors(getContext(), "Caldav sync error (parsing)", ex.getMessage());
-	            NotificationsHelper.getCurrentSyncLog().addException(ex);
+	            //NotificationsHelper.getCurrentSyncLog().addException(ex);
 			} catch (CaldavProtocolException ex) {
 				Log.e(TAG, "Caldav exception", ex);
 				stats.numParseExceptions++;
 
 	            NotificationsHelper.signalSyncErrors(getContext(), "Caldav sync error (caldav)", ex.getMessage());
-	            NotificationsHelper.getCurrentSyncLog().addException(ex);
+	            //NotificationsHelper.getCurrentSyncLog().addException(ex);
 			}
 		}
 		
@@ -662,19 +662,6 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 		cur.close();
 		
 		return Result;
-	}
-
-	static int calendarCount(Account account, ContentProviderClient provider) throws RemoteException {
-		
-		Cursor cur = null;
-		
-		Uri uri = Calendars.CONTENT_URI;   
-		String selection = "";
-		String[] selectionArgs = new String[] {}; 
-		// Submit the query and get a Cursor object back. 
-		cur = provider.query(uri, CALENDAR_PROJECTION, selection, selectionArgs, null);
-		
-		return cur.getCount();
 	}
 	
 	private static Uri getCalendarUri(Account account, ContentProviderClient provider, Calendar calendar) throws RemoteException {
