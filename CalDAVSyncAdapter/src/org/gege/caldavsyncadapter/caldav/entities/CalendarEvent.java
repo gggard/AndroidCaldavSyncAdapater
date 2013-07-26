@@ -50,6 +50,7 @@ import org.apache.http.client.ClientProtocolException;
 import org.gege.caldavsyncadapter.android.entities.AndroidEvent;
 import org.gege.caldavsyncadapter.caldav.CaldavFacade;
 import org.gege.caldavsyncadapter.caldav.CaldavProtocolException;
+
 import android.content.ContentUris;
 import android.content.ContentValues;
 import android.net.Uri;
@@ -60,28 +61,25 @@ import android.util.Log;
 
 
 
-public class CalendarEvent {
-
-
+public class CalendarEvent extends org.gege.caldavsyncadapter.Event {
 	private static final String TAG = "CalendarEvent";
 	
-	private URI uri;
-	private String eTag;
 	private String ics;
 
 	private Calendar calendar;
 
 	private Component calendarComponent;
 	
-	private Uri mAndroidUri;
-
+	private String eTag;
+	private URI muri;
+	
 	private boolean mAllDay = false;
 	private VTimeZone mVTimeZone = null; 
 	private TimeZone mTimeZone = null; 
 	
 	private String mstrTimeZoneStart = "";
 	private String mstrTimeZoneEnd = "";
-	
+
 	public String getETag() {
 		return eTag;
 	}
@@ -89,63 +87,64 @@ public class CalendarEvent {
 	public void setETag(String eTag) {
 		this.eTag = eTag;
 	}
-
+	
 	public URI getUri() {
-		return uri;
+		return muri;
 	}
 
 	public void setUri(URI uri) {
-		this.uri = uri;
+		this.muri = uri;
 	}
 
 	public void setICS(String ics) {
 		this.ics = ics;
 	}
-
-	public Uri getAndroidUri() {
-		return mAndroidUri;
-	}
-
-	public void setAndroidUri(Uri androidUri) {
-		mAndroidUri = androidUri;
-	}
 	
-	public ContentValues getContentValues(Uri calendarUri) {
-		ContentValues values = new ContentValues();
-		values.put(Events.DTSTART, this.getStartTime());
-		values.put(Events.EVENT_TIMEZONE, this.getTimeZoneStart());
+	public boolean readContentValues(Uri calendarUri) {
+		this.ContentValues.put(Events.DTSTART, this.getStartTime());
+		this.ContentValues.put(Events.EVENT_TIMEZONE, this.getTimeZoneStart());
 
 		if (this.getRRule().isEmpty() && this.getRDate().isEmpty()) {
 			//if (AllDay.equals(1)) //{
 			//	values.put(Events.ALL_DAY, AllDay);
 			//} else {
-			values.put(Events.DTEND, this.getEndTime());
-			values.put(Events.EVENT_END_TIMEZONE, this.getTimeZoneEnd());
+			this.ContentValues.put(Events.DTEND, this.getEndTime());
+			this.ContentValues.put(Events.EVENT_END_TIMEZONE, this.getTimeZoneEnd());
 			//}
 		} else {
 			//if (AllDay.equals(1))
 			//	values.put(Events.ALL_DAY, AllDay);
-			values.put(Events.DURATION, this.getDuration());
+			this.ContentValues.put(Events.DURATION, this.getDuration());
 		}
 		int AllDay = this.getAllDay();
-		values.put(Events.ALL_DAY, AllDay);
+		this.ContentValues.put(Events.ALL_DAY, AllDay);
 		
-		values.put(Events.TITLE, this.getTitle());
-		values.put(Events.CALENDAR_ID, ContentUris.parseId(calendarUri));
-		values.put(Events._SYNC_ID, this.getUri().toString());
-		values.put(AndroidEvent.ceTAG, this.getETag());
-		values.put(Events.DESCRIPTION, this.getDescription());
-		values.put(Events.EVENT_LOCATION, this.getLocation());
-		values.put(Events.ACCESS_LEVEL, this.getAccessLevel());
-		values.put(Events.STATUS, this.getStatus());
-		values.put(Events.RDATE, this.getRDate());
-		values.put(Events.RRULE, this.getRRule());
-		values.put(Events.EXRULE, this.getExRule());
-		values.put(Events.EXDATE, this.getExDate());
+		this.ContentValues.put(Events.TITLE, this.getTitle());
+		this.ContentValues.put(Events.CALENDAR_ID, ContentUris.parseId(calendarUri));
+		this.ContentValues.put(Events._SYNC_ID, this.getUri().toString());
+		this.ContentValues.put(ceTAG, this.getETag());
+		this.ContentValues.put(Events.DESCRIPTION, this.getDescription());
+		this.ContentValues.put(Events.EVENT_LOCATION, this.getLocation());
+		this.ContentValues.put(Events.ACCESS_LEVEL, this.getAccessLevel());
+		this.ContentValues.put(Events.STATUS, this.getStatus());
+		this.ContentValues.put(Events.RDATE, this.getRDate());
+		this.ContentValues.put(Events.RRULE, this.getRRule());
+		this.ContentValues.put(Events.EXRULE, this.getExRule());
+		this.ContentValues.put(Events.EXDATE, this.getExDate());
 		
-		return values;
+		return true;
 	}
 	
+
+	/**
+	 * receives a single event and parses its content
+	 * @return success of this function
+	 * @see CalendarEvent#parseIcs()
+	 * @throws ClientProtocolException
+	 * @throws IOException
+	 * @throws CaldavProtocolException
+	 * @throws ParserException
+	 */
 	public boolean fetchBody() throws ClientProtocolException, IOException, CaldavProtocolException, ParserException {
 		boolean Error = false;
 		
@@ -184,7 +183,7 @@ public class CalendarEvent {
 					
 					int intDuration = Duration.getMinutes() + Duration.getHours() * 60 + Duration.getDays() * 60 * 24;
 					
-					Reminder.put(Reminders.EVENT_ID, ContentUris.parseId(mAndroidUri));
+					Reminder.put(Reminders.EVENT_ID, ContentUris.parseId(this.getCounterpartUri()));
 					Reminder.put(Reminders.METHOD, Reminders.METHOD_ALERT);
 					Reminder.put(Reminders.MINUTES, intDuration);
 					
@@ -250,7 +249,7 @@ public class CalendarEvent {
 			if (strCUTYPE.equals("") || strCUTYPE.equals("INDIVIDUAL")) {
 				Attendee = new ContentValues();
 				
-				Attendee.put(Attendees.EVENT_ID, ContentUris.parseId(mAndroidUri));
+				Attendee.put(Attendees.EVENT_ID, ContentUris.parseId(this.getCounterpartUri()));
 
 				Attendee.put(Attendees.ATTENDEE_NAME, strCN);
 				Attendee.put(Attendees.ATTENDEE_EMAIL, strValue);
@@ -624,6 +623,15 @@ public class CalendarEvent {
 		return Result;
 	}
 
+	/**
+	 * opens the first items of the event
+	 * @return success of this function
+	 * @see AndroidEvent#createIcs()
+	 * @see CalendarEvent#fetchBody()
+	 * @throws CaldavProtocolException
+	 * @throws IOException
+	 * @throws ParserException
+	 */
 	private boolean parseIcs() throws CaldavProtocolException, IOException, ParserException {
 		boolean Error = false;
 		

@@ -22,8 +22,8 @@
 package org.gege.caldavsyncadapter.syncadapter;
 
 import java.io.IOException;
-//import java.net.MalformedURLException;
 import java.net.URI;
+//import java.net.MalformedURLException;
 import java.net.URISyntaxException;
 //import java.security.GeneralSecurityException;
 
@@ -35,6 +35,7 @@ import org.apache.http.ParseException;
 import org.apache.http.client.ClientProtocolException;
 import org.gege.caldavsyncadapter.CalendarColors;
 import org.gege.caldavsyncadapter.Constants;
+import org.gege.caldavsyncadapter.Event;
 import org.gege.caldavsyncadapter.android.entities.AndroidEvent;
 import org.gege.caldavsyncadapter.caldav.CaldavFacade;
 import org.gege.caldavsyncadapter.caldav.CaldavProtocolException;
@@ -142,8 +143,8 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 					Log.d(TAG, "CTag has not changed, nothing to do");
 				}
 				
-				int RowDirty = this.checkDirtyAndroidEvents(provider, account, calendarUri);
-				Log.i(TAG,"Rows dirty:    " + String.valueOf(RowDirty));
+				int rowDirty = this.checkDirtyAndroidEvents(provider, account, calendarUri);
+				Log.i(TAG,"Rows dirty:    " + String.valueOf(rowDirty));
 			}
         /*} catch (final AuthenticatorException e) {
             syncResult.stats.numParseExceptions++;
@@ -177,7 +178,28 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 	}
 
 	
-
+	/**
+	 * both calender event and android event have been found.
+	 * server wins always at the moment.
+	 * @param facade
+	 * @param account
+	 * @param provider
+	 * @param calendarUri
+	 * @param calendar
+	 * @param stats
+	 * @throws ClientProtocolException
+	 * @throws URISyntaxException
+	 * @throws IOException
+	 * @throws ParserConfigurationException
+	 * @throws SAXException
+	 * @throws RemoteException
+	 * @throws CaldavProtocolException
+	 * @throws ParserException
+	 * @see SyncAdapter#updateAndroidEvent(ContentProviderClient, Account, AndroidEvent, CalendarEvent)
+	 * @see SyncAdapter#tagAndroidEvent(ContentProviderClient, Account, AndroidEvent)
+	 * @see SyncAdapter#untagAndroidEvents(ContentProviderClient, Account, Uri)
+	 * @see SyncAdapter#deleteUntaggedEvents(ContentProviderClient, Account, Uri)
+	 */
 	private void synchroniseEvents(CaldavFacade facade, Account account,
 			ContentProviderClient provider, Uri calendarUri, Calendar calendar, SyncStats stats) throws ClientProtocolException, URISyntaxException, IOException, ParserConfigurationException, SAXException, RemoteException, CaldavProtocolException, ParserException {
 		
@@ -202,6 +224,7 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 				Log.i(TAG, "Event " + event.getUri().toString()+ " androidUri="+androidEvent);
 				
 				if (androidEvent == null) {
+					/* new android event */
 					if (createAndroidEvent(provider, account, calendarUri, event)) {
 						rowInsert += 1;
 						androidEvent = getAndroidEvent(provider, event.getUri(), calendarUri);
@@ -209,8 +232,10 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 						rowSkip += 1;
 					}
 				} else {
+					/* the android exists */
 					Log.d(TAG, "Event compare: " + androidEvent.getETag().toString() + " <> " + event.getETag().toString());
 					if ((androidEvent.getETag() == null) || (!androidEvent.getETag().equals(event.getETag()))) {
+						/* the android event is getting updated */
 						if (updateAndroidEvent(provider, account, androidEvent, event))
 							rowUpdate += 1;
 					}
@@ -255,6 +280,15 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 
 	}
 	
+	/**
+	 * checks the android events for the dirty flag.
+	 * the flag is set by android when the event has been changed. 
+	 * the dirty flag is removed when an android event has been updated from calendar event
+	 * @param provider
+	 * @param account
+	 * @param calendarUri
+	 * @return count of dirty events
+	 */
 	private int checkDirtyAndroidEvents(ContentProviderClient provider, Account account, Uri calendarUri) {
 		//boolean Result = false;
 		Cursor curEvent = null;
@@ -327,19 +361,39 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 		return CountDirtyRows;
 	}
 	
+	/**
+	 * Events not being tagged are for deletion 
+	 * @param provider
+	 * @param account
+	 * @param calendarUri
+	 * @return
+	 * @see AndroidEvent#cInternalTag
+	 * @see SyncAdapter#synchroniseEvents(CaldavFacade, Account, ContentProviderClient, Uri, Calendar, SyncStats)
+	 * @throws RemoteException
+	 */
 	private int deleteUntaggedEvents(ContentProviderClient provider, Account account, Uri calendarUri) throws RemoteException {
-		String mSelectionClause = "(" + AndroidEvent.cInternalTag +  "<> ?) AND (" + Events.CALENDAR_ID + " = ?)";
+		String mSelectionClause = "(" + Event.cInternalTag +  "<> ?) AND (" + Events.CALENDAR_ID + " = ?)";
 		String[] mSelectionArgs = {"1", Long.toString(ContentUris.parseId(calendarUri))};
 		
 		int CountDeleted = provider.delete(asSyncAdapter(Events.CONTENT_URI, account.name, account.type), mSelectionClause, mSelectionArgs);	
 		//Log.d(TAG, "Rows deleted: " + CountDeleted.toString());
 		return CountDeleted;
 	}
-	
+
+	/**
+	 * marks the android event as already handled
+	 * @param provider
+	 * @param account
+	 * @param androidEvent
+	 * @return
+	 * @see AndroidEvent#cInternalTag
+	 * @see SyncAdapter#synchroniseEvents(CaldavFacade, Account, ContentProviderClient, Uri, Calendar, SyncStats)
+	 * @throws RemoteException
+	 */
 	private boolean tagAndroidEvent(ContentProviderClient provider,Account account, AndroidEvent androidEvent) throws RemoteException {
 		
 		ContentValues values = new ContentValues();
-		values.put(AndroidEvent.cInternalTag, 1);
+		values.put(Event.cInternalTag, 1);
 		
 		int RowCount = provider.update(asSyncAdapter(androidEvent.getUri(), account.name, account.type), values, null, null);
 		//Log.e(TAG,"Rows updated: " + RowCount.toString());
@@ -347,12 +401,22 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 		return (RowCount == 1);
 	} 
 	
+	/**
+	 * removes the tag of all android events
+	 * @param provider
+	 * @param account
+	 * @param calendarUri
+	 * @return
+	 * @see AndroidEvent#cInternalTag
+	 * @see SyncAdapter#synchroniseEvents(CaldavFacade, Account, ContentProviderClient, Uri, Calendar, SyncStats)
+	 * @throws RemoteException
+	 */
 	private int untagAndroidEvents(ContentProviderClient provider, Account account, Uri calendarUri) throws RemoteException {
 		
 		ContentValues values = new ContentValues();
-		values.put(AndroidEvent.cInternalTag, 0);
+		values.put(Event.cInternalTag, 0);
 		
-		String mSelectionClause = "(" + AndroidEvent.cInternalTag +  " = ?) AND (" + Events.CALENDAR_ID + " = ?)";
+		String mSelectionClause = "(" + Event.cInternalTag +  " = ?) AND (" + Events.CALENDAR_ID + " = ?)";
 		String[] mSelectionArgs = {"1", Long.toString(ContentUris.parseId(calendarUri))};
 		
 		int RowCount = provider.update(asSyncAdapter(Events.CONTENT_URI, account.name, account.type), values, mSelectionClause, mSelectionArgs);
@@ -360,21 +424,35 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 		return RowCount;
 	}
 	
+	/**
+	 * the android event is getting updated
+	 * @param provider
+	 * @param account
+	 * @param androidEvent
+	 * @param calendarEvent
+	 * @return
+	 * @throws ClientProtocolException
+	 * @throws IOException
+	 * @throws CaldavProtocolException
+	 * @throws RemoteException
+	 * @throws ParserException
+	 * @see {@link SyncAdapter#synchroniseEvents(CaldavFacade, Account, ContentProviderClient, Uri, Calendar, SyncStats)}
+	 */
 	private boolean updateAndroidEvent(ContentProviderClient provider,
-			Account account, AndroidEvent androidEvent, CalendarEvent event) throws ClientProtocolException, IOException, CaldavProtocolException, RemoteException, ParserException {
-		boolean BodyFetched = event.fetchBody();
+			Account account, AndroidEvent androidEvent, CalendarEvent calendarEvent) throws ClientProtocolException, IOException, CaldavProtocolException, RemoteException, ParserException {
+		boolean BodyFetched = calendarEvent.fetchBody();
 		int Rows = 0;
 		
 		if (BodyFetched) {
-			ContentValues values = event.getContentValues(androidEvent.getCalendarUri());
-			event.setAndroidUri(androidEvent.getUri());
+			calendarEvent.readContentValues(androidEvent.getCounterpartUri());
+			calendarEvent.setCounterpartUri(androidEvent.getUri());
 		
 			Log.d(TAG, "AndroidEvent is dirty: " + androidEvent.ContentValues.getAsString(Events.DIRTY));
 			
-			if (CheckEventValuesChanged(androidEvent.ContentValues, values, androidEvent.getComparableItems())) {
+			if (this.checkEventValuesChanged(androidEvent.ContentValues, calendarEvent.ContentValues)) {
 				//check the attendees and reminders
-				this.InsertAttendees(provider, event);
-				this.InsertReminder(provider, event);
+				this.checkAttendees(provider, calendarEvent);
+				this.checkReminder(provider, calendarEvent);
 
 				androidEvent.ContentValues.put(Events.DIRTY, 0); // the event is now in sync
 				Log.d(TAG, "Update calendar event: for "+androidEvent.getUri());
@@ -388,19 +466,42 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 		return (Rows == 1);
 	}
 	
-	private boolean InsertReminder(ContentProviderClient provider, CalendarEvent event) {
+	private boolean checkAttendees(ContentProviderClient provider, CalendarEvent calendarEvent) {
+		boolean Result = false;
+		
+		try {
+			String mSelectionClause = "(" + Attendees.EVENT_ID + " = ?)";
+			String[] mSelectionArgs = {Long.toString(ContentUris.parseId(calendarEvent.getCounterpartUri())) };
+			int RowDelete;
+			RowDelete = provider.delete(Attendees.CONTENT_URI, mSelectionClause, mSelectionArgs);
+			Log.d(TAG, "Attendees Deleted:" + String.valueOf(RowDelete));
+			
+			java.util.ArrayList<ContentValues> AttendeeList = calendarEvent.getAttandees();
+			for (ContentValues Attendee : AttendeeList) {
+				provider.insert(Attendees.CONTENT_URI, Attendee);
+			}
+			Log.d(TAG, "Attendees Inserted:" + String.valueOf(AttendeeList.size()));
+			Result = true;
+		} catch (RemoteException e) {
+			e.printStackTrace();
+		}
+		
+		return Result;
+	}
+	
+	private boolean checkReminder(ContentProviderClient provider, CalendarEvent calendarEvent) {
 		boolean Result = false;
 		
 		try {
 			String mSelectionClause = "(" + Reminders.EVENT_ID + " = ?)";
-			String[] mSelectionArgs = {Long.toString(ContentUris.parseId(event.getAndroidUri())) };
+			String[] mSelectionArgs = {Long.toString(ContentUris.parseId(calendarEvent.getCounterpartUri())) };
 			int RowDelete;
 			RowDelete = provider.delete(Reminders.CONTENT_URI, mSelectionClause, mSelectionArgs);
 			Log.d(TAG, "Reminders Deleted:" + String.valueOf(RowDelete));
 			
 			
 			Uri ReminderUri;
-			java.util.ArrayList<ContentValues> ReminderList = event.getReminders();
+			java.util.ArrayList<ContentValues> ReminderList = calendarEvent.getReminders();
 			for (ContentValues Reminder : ReminderList) {
 				ReminderUri = provider.insert(Reminders.CONTENT_URI, Reminder);
 				System.out.println(ReminderUri);
@@ -415,43 +516,27 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 		return Result;
 	}
 	
-	private boolean InsertAttendees(ContentProviderClient provider, CalendarEvent event) {
-		boolean Result = false;
-		
-		try {
-			String mSelectionClause = "(" + Attendees.EVENT_ID + " = ?)";
-			String[] mSelectionArgs = {Long.toString(ContentUris.parseId(event.getAndroidUri())) };
-			int RowDelete;
-			RowDelete = provider.delete(Attendees.CONTENT_URI, mSelectionClause, mSelectionArgs);
-			Log.d(TAG, "Attendees Deleted:" + String.valueOf(RowDelete));
-			
-			java.util.ArrayList<ContentValues> AttendeeList = event.getAttandees();
-			for (ContentValues Attendee : AttendeeList) {
-				provider.insert(Attendees.CONTENT_URI, Attendee);
-			}
-			Log.d(TAG, "Attendees Inserted:" + String.valueOf(AttendeeList.size()));
-			Result = true;
-		} catch (RemoteException e) {
-			e.printStackTrace();
-		}
-		
-		return Result;
-	}
-	
-	private boolean CheckEventValuesChanged(ContentValues AndroidEvt, ContentValues CalendarEvt, java.util.ArrayList<String> CompareItems) {
+	/**
+	 * compares two ContentValues for differences
+	 * @param androidEventValues the contentValues of the android event
+	 * @param calendarEventValues the contentValues of the calendar event
+	 * @return if the events are different
+	 */
+	private boolean checkEventValuesChanged(ContentValues androidEventValues, ContentValues calendarEventValues) {
 		boolean Result = false;
 		Object ValueAndroid = null;
 		Object ValueCalendar = null;
-
+		java.util.ArrayList<String> CompareItems = Event.getComparableItems();
+		
 		for (String Key: CompareItems) {
 
-			if (AndroidEvt.containsKey(Key)) 
-				ValueAndroid = AndroidEvt.get(Key);
+			if (androidEventValues.containsKey(Key)) 
+				ValueAndroid = androidEventValues.get(Key);
 			else
 				ValueAndroid = null;
 
-			if (CalendarEvt.containsKey(Key))
-				ValueCalendar = CalendarEvt.get(Key);
+			if (calendarEventValues.containsKey(Key))
+				ValueCalendar = calendarEventValues.get(Key);
 			else
 				ValueCalendar = null;
 
@@ -462,18 +547,18 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 				if (ValueCalendar != null) {
 					if (!ValueAndroid.toString().equals(ValueCalendar.toString())) {
 						Log.d(TAG, "difference in " + Key.toString() + ":" + ValueAndroid.toString() + " <> " + ValueCalendar.toString());
-						AndroidEvt.put(Key,ValueCalendar.toString());
+						androidEventValues.put(Key,ValueCalendar.toString());
 						Result = true;
 					}
 				} else {
 					Log.d(TAG, "difference in " + Key.toString() + ":" + ValueAndroid.toString() + " <> null");
-					AndroidEvt.putNull(Key);
+					androidEventValues.putNull(Key);
 					Result = true;
 				}
 			} else {
 				if (ValueCalendar != null) {
 					Log.d(TAG, "difference in " + Key.toString() + ":null <> " + ValueCalendar.toString());
-					AndroidEvt.put(Key, ValueCalendar.toString());
+					androidEventValues.put(Key, ValueCalendar.toString());
 					Result = true;
 				} else {
 					// both null -> this is ok
@@ -498,29 +583,29 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 
 
 	
-	private boolean createAndroidEvent(ContentProviderClient provider, Account account, Uri calendarUri, CalendarEvent event) throws ClientProtocolException, IOException, CaldavProtocolException, RemoteException, ParserException {
+	private boolean createAndroidEvent(ContentProviderClient provider, Account account, Uri calendarUri, CalendarEvent calendarEvent) throws ClientProtocolException, IOException, CaldavProtocolException, RemoteException, ParserException {
 		boolean Result = false;
-		boolean BodyFetched = event.fetchBody();
+		boolean BodyFetched = calendarEvent.fetchBody();
 		int CountAttendees = 0;
 		int CountReminders = 0;
 		
 		if (BodyFetched) {
-			ContentValues values = event.getContentValues(calendarUri);
+			calendarEvent.readContentValues(calendarUri);
 		
-			Uri uri = provider.insert(asSyncAdapter(Events.CONTENT_URI, account.name, account.type), values);
-			event.setAndroidUri(uri);
+			Uri uri = provider.insert(asSyncAdapter(Events.CONTENT_URI, account.name, account.type), calendarEvent.ContentValues);
+			calendarEvent.setCounterpartUri(uri);
 		
 			Log.d(TAG, "Creating calendar event for " + uri.toString());
 			
 			//check the attendees
-			java.util.ArrayList<ContentValues> AttendeeList = event.getAttandees();
+			java.util.ArrayList<ContentValues> AttendeeList = calendarEvent.getAttandees();
 			for (ContentValues Attendee : AttendeeList) {
 				provider.insert(Attendees.CONTENT_URI, Attendee);
 				CountAttendees += 1;
 			}
 			
 			//check the reminders
-			java.util.ArrayList<ContentValues> ReminderList = event.getReminders();
+			java.util.ArrayList<ContentValues> ReminderList = calendarEvent.getReminders();
 			for (ContentValues Reminder : ReminderList) {
 				provider.insert(Reminders.CONTENT_URI, Reminder);
 				CountReminders += 1;
@@ -528,7 +613,7 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 			
 			if ((CountAttendees > 0) || (CountReminders > 0)) {
 				//the events gets dirty when attendees or reminders were added
-				AndroidEvent androidEvent = getAndroidEvent(provider, event.getUri(), calendarUri);
+				AndroidEvent androidEvent = getAndroidEvent(provider, calendarEvent.getUri(), calendarUri);
 				androidEvent.ContentValues.put(Events.DIRTY, 0);
 				//CheckEventValuesChanged(androidEvent.ContentValues, values, androidEvent.getComparableItems());
 				int RowCount = provider.update(asSyncAdapter(androidEvent.getUri(), account.name, account.type), androidEvent.ContentValues, null, null);
@@ -580,12 +665,20 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 		return returnedCalendarUri;
 	}
 	
+	/**
+	 * searches for an android event
+	 * @param provider
+	 * @param caldavEventUri
+	 * @param calendarUri
+	 * @return the android event
+	 * @throws RemoteException
+	 */
 	private static AndroidEvent getAndroidEvent(ContentProviderClient provider, URI caldavEventUri, Uri calendarUri) throws RemoteException {
 		boolean Error = false;
 		Uri uriEvents = Events.CONTENT_URI;
 		Uri uriAttendee = Attendees.CONTENT_URI;
 		Uri uriReminder = Reminders.CONTENT_URI;
-		AndroidEvent ev = null;
+		AndroidEvent androidEvent = null;
 		
 		String selection = "(" + Events._SYNC_ID + " = ?)";
 		String[] selectionArgs = new String[] {caldavEventUri.toString()}; 
@@ -608,8 +701,8 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 			long EventID = curEvent.getLong(curEvent.getColumnIndex(Events._ID));
 			Uri returnedUri = ContentUris.withAppendedId(uriEvents, EventID);
 			
-			ev = new AndroidEvent(returnedUri, calendarUri);
-			ev.readContentValues(curEvent);
+			androidEvent = new AndroidEvent(returnedUri, calendarUri);
+			androidEvent.readContentValues(curEvent);
 			
 			selection = "(" + Attendees.EVENT_ID + " = ?)";
 			selectionArgs = new String[] {String.valueOf(EventID)}; 
@@ -617,14 +710,14 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 			selection = "(" + Reminders.EVENT_ID + " = ?)";
 			selectionArgs = new String[] {String.valueOf(EventID)}; 
 			curReminder = provider.query(uriReminder, null, selection, selectionArgs, null);
-			ev.readAttendees(curAttendee);
-			ev.readReminder(curReminder);
+			androidEvent.readAttendees(curAttendee);
+			androidEvent.readReminder(curReminder);
 			curAttendee.close();
 			curReminder.close();
 		}
 		curEvent.close();
 		
-		return ev;
+		return androidEvent;
 	}
 	
 	private static boolean isCalendarExist(Account account, ContentProviderClient provider, Calendar calendar) throws RemoteException {

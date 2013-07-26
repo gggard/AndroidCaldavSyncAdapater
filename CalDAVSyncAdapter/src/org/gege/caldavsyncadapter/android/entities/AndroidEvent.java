@@ -24,7 +24,6 @@ package org.gege.caldavsyncadapter.android.entities;
 import java.net.SocketException;
 import java.net.URISyntaxException;
 import java.text.ParseException;
-
 import net.fortuna.ical4j.model.Calendar;
 import net.fortuna.ical4j.model.DateTime;
 import net.fortuna.ical4j.model.ParameterList;
@@ -56,36 +55,27 @@ import net.fortuna.ical4j.model.property.Status;
 import net.fortuna.ical4j.model.property.Summary;
 import net.fortuna.ical4j.model.property.Version;
 import net.fortuna.ical4j.util.UidGenerator;
-import android.content.ContentValues;
 import android.database.Cursor;
 import android.net.Uri;
 import android.provider.CalendarContract.Attendees;
 import android.provider.CalendarContract.Events;
+import org.gege.caldavsyncadapter.caldav.entities.CalendarEvent;
 
-public class AndroidEvent {
-	public static String ceTAG = Events.SYNC_DATA1;
-	public static String cInternalTag = Events.SYNC_DATA2;
-	public static String cRawData = Events.SYNC_DATA3;
-	
+public class AndroidEvent extends org.gege.caldavsyncadapter.Event {
+
 	private Uri muri;
-	private Uri mcalendarUri;
-	public ContentValues ContentValues = new ContentValues();	
+	
+	/**
+	 * the list of attendees
+	 */
 	private PropertyList mAttendees = new PropertyList();
 
 	private Calendar mCalendar = null;
 	
 	public AndroidEvent(Uri uri, Uri calendarUri) {
 		super();
-		muri = uri;
-		mcalendarUri = calendarUri;
-	}
-	
-	public Uri getUri() {
-		return muri;
-	}
-
-	public Uri getCalendarUri() {
-		return mcalendarUri;
+		this.setUri(uri);
+		this.setCounterpartUri(calendarUri);
 	}
 
 	public String getETag() {
@@ -98,14 +88,28 @@ public class AndroidEvent {
 	public void setETag(String eTag) {
 		this.ContentValues.put(ceTAG, eTag);
 	}
+	
+	public Uri getUri() {
+		return muri;
+	}
+
+	public void setUri(Uri uri) {
+		this.muri = uri;
+	}
 
 	@Override
 	public String toString() {
-		return muri.toString();
+		return this.getUri().toString();
 	}
 
+	/**
+	 * reads an android event from a given cursor into {@link AndroidEvent#ContentValues}
+	 * @param cur the cursor with the event
+	 * @return success of this funtion
+	 * @see AndroidEvent#ContentValues
+	 */
 	public boolean readContentValues(Cursor cur) {
-		this.setETag(cur.getString(cur.getColumnIndex(AndroidEvent.ceTAG)));
+		this.setETag(cur.getString(cur.getColumnIndex(ceTAG)));
 
 		this.ContentValues.put(Events.EVENT_TIMEZONE, cur.getString(cur.getColumnIndex(Events.EVENT_TIMEZONE)));
 		this.ContentValues.put(Events.EVENT_END_TIMEZONE, cur.getString(cur.getColumnIndex(Events.EVENT_END_TIMEZONE)));
@@ -134,6 +138,12 @@ public class AndroidEvent {
 		return true;
 	}
 	
+	/**
+	 * reads the attendees from a given cursor
+	 * @param cur the cursor with the attendees
+	 * @return success of this function
+	 * @see AndroidEvent#mAttendees
+	 */
 	public boolean readAttendees(Cursor cur) {
 		Attendee attendee = null;
 		Organizer organizer = null;
@@ -204,36 +214,23 @@ public class AndroidEvent {
 		return true;
 	}
 	
+	/**
+	 * reads the reminders from a given cursor
+	 * @param cur the cursor with the reminders
+	 * @return success of this function
+	 */
 	public boolean readReminder(Cursor cur) {
 		
 		return true;
 	}
 	
-	public java.util.ArrayList<String> getComparableItems() {
-		java.util.ArrayList<String> Result = new java.util.ArrayList<String>();
-		Result.add(Events.DTSTART);
-		Result.add(Events.DTEND);
-		Result.add(Events.EVENT_TIMEZONE);
-		Result.add(Events.EVENT_END_TIMEZONE);
-		Result.add(Events.ALL_DAY);
-		Result.add(Events.DURATION);
-		Result.add(Events.TITLE);
-		Result.add(Events.CALENDAR_ID);
-		Result.add(Events._SYNC_ID);
-		//Result.add(Events.SYNC_DATA1);
-		Result.add(AndroidEvent.ceTAG);
-		Result.add(Events.DESCRIPTION);
-		Result.add(Events.EVENT_LOCATION);
-		Result.add(Events.ACCESS_LEVEL);
-		Result.add(Events.STATUS);
-		Result.add(Events.RDATE);
-		Result.add(Events.RRULE);
-		Result.add(Events.EXRULE);
-		Result.add(Events.EXDATE);
-		
-		return Result;
-	}
-	
+	/**
+	 * generates a new ics-file.
+	 * uses {@link AndroidEvent#ContentValues} as source.
+	 * this should only be used when a new event has been generated within android.
+	 * @return success of the function
+	 * @see CalendarEvent#fetchBody()
+	 */
 	public boolean createIcs() {
 		boolean Result = false;
 		TimeZone timezone = null;
