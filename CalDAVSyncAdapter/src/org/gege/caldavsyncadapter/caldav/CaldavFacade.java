@@ -405,8 +405,13 @@ public class CaldavFacade {
 		request = new HttpPropFind();
 		request.setURI(calendar.getURI());
 		request.setHeader("Depth", "1");
-		request.setEntity(new StringEntity(requestBody));
-
+		request.setHeader("Content-Type", "application/xml;charset=\"UTF-8\"");
+		try {
+			request.setEntity(new StringEntity(requestBody, "UTF-8"));
+		} catch (UnsupportedEncodingException e) {
+			throw new AssertionError("UTF-8 is unknown");
+		}
+		
 		Log.d(TAG, "Getting eTag by PROPFIND at " + request.getURI());
 
 		HttpResponse response = httpClient.execute(targetHost, request);
@@ -502,6 +507,7 @@ public class CaldavFacade {
 		HttpPropFind request = new HttpPropFind();
 		request.setURI(uri);
 		request.setHeader("Depth", Integer.toString(depth));
+		request.setHeader("Content-Type", "application/xml;charset=\"UTF-8\"");
 		try {
 			request.setEntity(new StringEntity(data, "UTF-8"));
 		} catch (UnsupportedEncodingException e) {
@@ -516,6 +522,7 @@ public class CaldavFacade {
 
 		request = new HttpGet();
 		request.setURI(calendarEvent.getUri());
+		request.setHeader("Content-Type", "application/xml;charset=\"UTF-8\"");
 
 		HttpResponse response = httpClient.execute(targetHost, request);
 
