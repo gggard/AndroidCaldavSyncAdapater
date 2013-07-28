@@ -673,11 +673,17 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 			contentValues.put(Calendars.SYNC_EVENTS, 1);
 			contentValues.put(Calendars.CALENDAR_ACCESS_LEVEL, Calendars.CAL_ACCESS_OWNER);
 			
-			// find a color
-			int index = calendarCount(account, provider);
-			index = index % CalendarColors.colors.length;
-			contentValues.put(Calendars.CALENDAR_COLOR, CalendarColors.colors[index]);
-
+			if (!calendar.getCalendarColor().equals("")) {
+				setCalendarColor(account, provider, returnedCalendarUri, calendar.getCalendarColor());
+				String calendarColor = calendar.getCalendarColor().replace("#", "");
+				long color = Long.parseLong(calendarColor, 16);
+				contentValues.put(Calendars.CALENDAR_COLOR, color);
+			} else {
+				// find a color
+				int index = calendarCount(account, provider);
+				index = index % CalendarColors.colors.length;
+				contentValues.put(Calendars.CALENDAR_COLOR, CalendarColors.colors[index]);
+			}
 
 			returnedCalendarUri = provider.insert(asSyncAdapter(Calendars.CONTENT_URI, account.name, account.type), contentValues);
 
