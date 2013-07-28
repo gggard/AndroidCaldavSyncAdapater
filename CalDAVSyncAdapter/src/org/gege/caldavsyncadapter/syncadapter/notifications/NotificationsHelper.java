@@ -3,11 +3,11 @@ package org.gege.caldavsyncadapter.syncadapter.notifications;
 import org.gege.caldavsyncadapter.R;
 
 import android.app.NotificationManager;
-import android.app.PendingIntent;
+//import android.app.PendingIntent;
 import android.content.Context;
-import android.content.Intent;
+//import android.content.Intent;
 import android.support.v4.app.NotificationCompat;
-import android.support.v4.app.TaskStackBuilder;
+//import android.support.v4.app.TaskStackBuilder;
 
 public class NotificationsHelper {
 

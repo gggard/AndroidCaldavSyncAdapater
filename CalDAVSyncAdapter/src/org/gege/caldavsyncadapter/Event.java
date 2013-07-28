@@ -26,26 +26,16 @@ abstract public class Event {
 	abstract public String getETag();
 	abstract public void setETag(String ETag);
 
-	private Uri mcounterpartUri;
-	/**
-	 * represents the Uri of its counterpart.
-	 * the android event stores its calendar event Uri.
-	 * the calendar event stores its android event Uri.
-	 * @param uri
-	 */
+	private Uri mCounterpartUri;
+	
 	public void setCounterpartUri(Uri uri) {
-		mcounterpartUri = uri;
-	}
-	/**
-	 * represents the Uri of its counterpart
-	 * the android event stores its calendar event Uri.
-	 * the calendar event stores its android event Uri.
-	 * @param uri
-	 */
-	public Uri getCounterpartUri() {
-		return mcounterpartUri;
+		mCounterpartUri = uri;
 	}
 	
+	public Uri getCounterpartUri(Uri uri) {
+		return mCounterpartUri;
+	}
+
 	/**
 	 * returns a list of all items that are comparable with this sync adapter
 	 * @return a list of all items that are comparable with this sync adapter

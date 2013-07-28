@@ -23,6 +23,11 @@ package org.gege.caldavsyncadapter.caldav;
 
 public class CaldavProtocolException extends Exception {
 
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = -8237099919427898671L;
+
 	public CaldavProtocolException(String string) {
 		super(string);
 	}

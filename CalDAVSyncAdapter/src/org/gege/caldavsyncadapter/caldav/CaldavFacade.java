@@ -325,7 +325,9 @@ public class CaldavFacade {
 			// +
 			// "<d:supported-method-set /><d:supported-report-set /><c:supported-calendar-component-set />"
 			// +
-			// "<c:calendar-description /><c:calendar-timezone /><c:calendar-free-busy-set /><ic:calendar-color /><ic:calendar-order />"
+			// "<c:calendar-description /><c:calendar-timezone /><c:calendar-free-busy-set />
+			+ "<ic:calendar-color />"
+			//<ic:calendar-order />"
 			+ "<cs:getctag /></d:prop></d:propfind>";
 
 	private List<Calendar> getCalendarsFromSet(URI calendarSet)

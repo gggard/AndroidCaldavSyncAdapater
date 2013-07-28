@@ -51,6 +51,8 @@ import org.gege.caldavsyncadapter.android.entities.AndroidEvent;
 import org.gege.caldavsyncadapter.caldav.CaldavFacade;
 import org.gege.caldavsyncadapter.caldav.CaldavProtocolException;
 
+import android.accounts.Account;
+import android.content.ContentProviderClient;
 import android.content.ContentUris;
 import android.content.ContentValues;
 import android.net.Uri;
@@ -72,6 +74,7 @@ public class CalendarEvent extends org.gege.caldavsyncadapter.Event {
 	
 	private String eTag;
 	private URI muri;
+	private Uri mAndroidEventUri;
 	
 	private boolean mAllDay = false;
 	private VTimeZone mVTimeZone = null; 
@@ -100,6 +103,31 @@ public class CalendarEvent extends org.gege.caldavsyncadapter.Event {
 		this.ics = ics;
 	}
 	
+	/**
+	 * sets the Uri of the android event
+	 * @param uri
+	 * @see org.gege.caldavsyncadapter.syncadapter.SyncAdapter#createAndroidEvent(ContentProviderClient provider, Account account, Uri calendarUri, CalendarEvent calendarEvent)
+	 * @see org.gege.caldavsyncadapter.syncadapter.SyncAdapter#updateAndroidEvent(ContentProviderClient provider, Account account, AndroidEvent androidEvent, CalendarEvent calendarEvent)
+	 */
+	public void setAndroidEventUri(Uri uri) {
+		mAndroidEventUri = uri;
+	}
+	
+	/**
+	 * gets the Uri of the android event
+	 * @return
+	 */
+	public Uri getAndroidEventUri() {
+		return mAndroidEventUri;
+	}
+	
+	/**
+	 * reads all ContentValues from the caldav source
+	 * @param calendarUri
+	 * @return
+	 * @see org.gege.caldavsyncadapter.syncadapter.SyncAdapter#createAndroidEvent(ContentProviderClient provider, Account account, Uri calendarUri, CalendarEvent calendarEvent)
+	 * @see org.gege.caldavsyncadapter.syncadapter.SyncAdapter#updateAndroidEvent(ContentProviderClient provider, Account account, AndroidEvent androidEvent, CalendarEvent calendarEvent)
+	 */
 	public boolean readContentValues(Uri calendarUri) {
 		this.ContentValues.put(Events.DTSTART, this.getStartTime());
 		this.ContentValues.put(Events.EVENT_TIMEZONE, this.getTimeZoneStart());
@@ -183,7 +211,7 @@ public class CalendarEvent extends org.gege.caldavsyncadapter.Event {
 					
 					int intDuration = Duration.getMinutes() + Duration.getHours() * 60 + Duration.getDays() * 60 * 24;
 					
-					Reminder.put(Reminders.EVENT_ID, ContentUris.parseId(this.getCounterpartUri()));
+					Reminder.put(Reminders.EVENT_ID, ContentUris.parseId(mAndroidEventUri));
 					Reminder.put(Reminders.METHOD, Reminders.METHOD_ALERT);
 					Reminder.put(Reminders.MINUTES, intDuration);
 					
@@ -249,7 +277,7 @@ public class CalendarEvent extends org.gege.caldavsyncadapter.Event {
 			if (strCUTYPE.equals("") || strCUTYPE.equals("INDIVIDUAL")) {
 				Attendee = new ContentValues();
 				
-				Attendee.put(Attendees.EVENT_ID, ContentUris.parseId(this.getCounterpartUri()));
+				Attendee.put(Attendees.EVENT_ID, ContentUris.parseId(mAndroidEventUri));
 
 				Attendee.put(Attendees.ATTENDEE_NAME, strCN);
 				Attendee.put(Attendees.ATTENDEE_EMAIL, strValue);

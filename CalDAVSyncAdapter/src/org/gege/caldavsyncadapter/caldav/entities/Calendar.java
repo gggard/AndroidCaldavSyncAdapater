@@ -28,6 +28,7 @@ public class Calendar {
 	URI uri;
 	private String displayName;
 	private String cTag;
+	private String calendarColor = "";
 
 
 
@@ -53,6 +54,14 @@ public class Calendar {
 	
 	public String getcTag() {
 		return cTag;
+	}
+	
+	public void setCalendarColor(String color) {
+		calendarColor = color;
+	}
+	
+	public String getCalendarColor() {
+		return calendarColor;
 	}
 
 }

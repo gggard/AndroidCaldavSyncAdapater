@@ -25,18 +25,24 @@ import java.net.SocketException;
 import java.net.URISyntaxException;
 import java.text.ParseException;
 import net.fortuna.ical4j.model.Calendar;
+import net.fortuna.ical4j.model.Component;
+import net.fortuna.ical4j.model.ComponentList;
 import net.fortuna.ical4j.model.DateTime;
+import net.fortuna.ical4j.model.Dur;
 import net.fortuna.ical4j.model.ParameterList;
 import net.fortuna.ical4j.model.Property;
 import net.fortuna.ical4j.model.PropertyList;
 import net.fortuna.ical4j.model.TimeZone;
 import net.fortuna.ical4j.model.TimeZoneRegistry;
 import net.fortuna.ical4j.model.TimeZoneRegistryFactory;
+import net.fortuna.ical4j.model.component.VAlarm;
 import net.fortuna.ical4j.model.component.VEvent;
 import net.fortuna.ical4j.model.parameter.Cn;
 import net.fortuna.ical4j.model.parameter.PartStat;
 import net.fortuna.ical4j.model.parameter.Role;
 import net.fortuna.ical4j.model.parameter.Rsvp;
+import net.fortuna.ical4j.model.parameter.Value;
+import net.fortuna.ical4j.model.property.Action;
 import net.fortuna.ical4j.model.property.Attendee;
 import net.fortuna.ical4j.model.property.CalScale;
 import net.fortuna.ical4j.model.property.Clazz;
@@ -53,29 +59,40 @@ import net.fortuna.ical4j.model.property.RDate;
 import net.fortuna.ical4j.model.property.RRule;
 import net.fortuna.ical4j.model.property.Status;
 import net.fortuna.ical4j.model.property.Summary;
+import net.fortuna.ical4j.model.property.Trigger;
 import net.fortuna.ical4j.model.property.Version;
 import net.fortuna.ical4j.util.UidGenerator;
 import android.database.Cursor;
 import android.net.Uri;
 import android.provider.CalendarContract.Attendees;
 import android.provider.CalendarContract.Events;
+import android.provider.CalendarContract.Reminders;
+
 import org.gege.caldavsyncadapter.caldav.entities.CalendarEvent;
 
 public class AndroidEvent extends org.gege.caldavsyncadapter.Event {
 
 	private Uri muri;
 	
+	private Uri mAndroidCalendarUri;
+	
 	/**
 	 * the list of attendees
 	 */
 	private PropertyList mAttendees = new PropertyList();
+	
+	/**
+	 * the list of reminders 
+	 */
+	private ComponentList mReminders = new ComponentList();
 
 	private Calendar mCalendar = null;
 	
 	public AndroidEvent(Uri uri, Uri calendarUri) {
 		super();
 		this.setUri(uri);
-		this.setCounterpartUri(calendarUri);
+		//this.setCounterpartUri(calendarUri);
+		mAndroidCalendarUri = calendarUri;
 	}
 
 	public String getETag() {
@@ -96,12 +113,16 @@ public class AndroidEvent extends org.gege.caldavsyncadapter.Event {
 	public void setUri(Uri uri) {
 		this.muri = uri;
 	}
-
+	
+	public Uri getAndroidCalendarUri() {
+		return mAndroidCalendarUri;
+	}
+	
 	@Override
 	public String toString() {
 		return this.getUri().toString();
 	}
-
+	
 	/**
 	 * reads an android event from a given cursor into {@link AndroidEvent#ContentValues}
 	 * @param cur the cursor with the event
@@ -220,7 +241,33 @@ public class AndroidEvent extends org.gege.caldavsyncadapter.Event {
 	 * @return success of this function
 	 */
 	public boolean readReminder(Cursor cur) {
-		
+		int Method;
+		int Minutes;
+		VAlarm reminder;
+		while (cur.moveToNext()) {
+			reminder = new VAlarm();
+			Method = cur.getInt(cur.getColumnIndex(Reminders.METHOD));
+			Minutes = cur.getInt(cur.getColumnIndex(Reminders.MINUTES)) * -1;
+			
+			
+			Dur dur = new Dur(0, 0, Minutes, 0);
+			Trigger tri = new Trigger(dur);
+			Value val = new Value(Duration.DURATION);
+			tri.getParameters().add(val);
+			reminder.getProperties().add(tri);
+
+			Description desc = new Description();
+			desc.setValue("caldavsyncadapter standard description");
+			reminder.getProperties().add(desc);
+
+
+			if (Method == Reminders.METHOD_EMAIL)
+				reminder.getProperties().add(Action.EMAIL);
+			else
+				reminder.getProperties().add(Action.DISPLAY);
+			
+			this.mReminders.add(reminder);
+		}
 		return true;
 	}
 	
@@ -410,10 +457,19 @@ public class AndroidEvent extends org.gege.caldavsyncadapter.Event {
 			UidGenerator ug = new UidGenerator("1");
 			propEvent.add(ug.generateUid());
 
+			// Attendees
 			if (mAttendees.size() > 0) {
 				for (Object objProp: mAttendees) {
 					Property prop = (Property) objProp;
 					propEvent.add(prop);
+				}
+			}
+			
+			// Reminders
+			if (mReminders.size() > 0) {
+				for (Object objComp: mReminders) {
+					Component com = (Component) objComp;
+					event.getAlarms().add(com);
 				}
 			}
 			
