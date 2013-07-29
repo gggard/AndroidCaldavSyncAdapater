@@ -88,6 +88,10 @@ public class AndroidEvent extends org.gege.caldavsyncadapter.Event {
 
 	private Calendar mCalendar = null;
 	
+	public String getIcsEvent() {
+		return mCalendar.toString();
+	}
+	
 	public AndroidEvent(Uri uri, Uri calendarUri) {
 		super();
 		this.setUri(uri);

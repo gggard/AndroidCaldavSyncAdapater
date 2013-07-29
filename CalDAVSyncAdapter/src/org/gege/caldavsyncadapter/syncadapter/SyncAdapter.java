@@ -115,20 +115,21 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 			ContentProviderClient provider, SyncResult syncResult) {
 		
 		String url = mAccountManager.getUserData(account, Constants.USER_DATA_URL_KEY);
-
 		Log.v(TAG, "onPerformSync() on "+account.name+" with URL "+url);
 
 		Iterable<Calendar> calendarList;
 		
 		try {
+			
 			CaldavFacade facade = new CaldavFacade(account.name, mAccountManager.getPassword(account), url);
 			calendarList = facade.getCalendarList(getContext());
+			String davProperties = facade.getLastDav();
 			
 			for (Calendar calendar : calendarList) {
 				Log.i(TAG, "Detected calendar name="+calendar.getDisplayName()+" URI="+calendar.getURI());
 			
 				Uri calendarUri = getOrCreateCalendarUri(account, provider, calendar);
-			
+
 				if ((FORCE_SYNCHRONIZE) ||
 					(getCalendarCTag(provider, calendarUri) == null) ||
 					(!getCalendarCTag(provider, calendarUri).equals(calendar.getcTag()))) {
@@ -143,7 +144,7 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 					Log.d(TAG, "CTag has not changed, nothing to do");
 				}
 				
-				int rowDirty = this.checkDirtyAndroidEvents(provider, account, calendarUri);
+				int rowDirty = this.checkDirtyAndroidEvents(provider, account, calendarUri, facade, calendar.getURI());
 				Log.i(TAG,"Rows dirty:    " + String.valueOf(rowDirty));
 			}
         /*} catch (final AuthenticatorException e) {
@@ -233,8 +234,11 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 					}
 				} else {
 					/* the android exists */
-					Log.d(TAG, "Event compare: " + androidEvent.getETag().toString() + " <> " + calendarEvent.getETag().toString());
-					if ((androidEvent.getETag() == null) || (!androidEvent.getETag().equals(calendarEvent.getETag()))) {
+					String androidETag = androidEvent.getETag();
+					if (androidETag == null)
+						androidETag = "";
+					Log.d(TAG, "Event compare: " + androidETag + " <> " + calendarEvent.getETag().toString());
+					if ((androidEvent.getETag() == null) || (!androidETag.equals(calendarEvent.getETag()))) {
 						/* the android event is getting updated */
 						if (updateAndroidEvent(provider, account, androidEvent, calendarEvent))
 							rowUpdate += 1;
@@ -289,7 +293,7 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 	 * @param calendarUri
 	 * @return count of dirty events
 	 */
-	private int checkDirtyAndroidEvents(ContentProviderClient provider, Account account, Uri calendarUri) {
+	private int checkDirtyAndroidEvents(ContentProviderClient provider, Account account, Uri calendarUri, CaldavFacade facade, URI caldavCalendarUri) {
 		//boolean Result = false;
 		Cursor curEvent = null;
 		Cursor curAttendee = null;
@@ -297,7 +301,9 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 		Long EventID;
 		Long CalendarID;
 		AndroidEvent ev = null;
-		int CountDirtyRows = 0;
+		int countDirtyRows = 0;
+		int countNewRows = 0;
+		int countDeletedRows = 0;
 		
 		try {
 			CalendarID = ContentUris.parseId(calendarUri);
@@ -326,16 +332,40 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 				String SyncID = ev.ContentValues.getAsString(Events._SYNC_ID);
 				
 				boolean Deleted = false;
-				if (ev.ContentValues.containsKey(Events.DELETED))
-					Deleted = ev.ContentValues.getAsBoolean(Events.DELETED);
+				int intDeleted = 0;
+				intDeleted = curEvent.getInt(curEvent.getColumnIndex(Events.DELETED));
+				Deleted = (intDeleted == 1);
 
 				if (SyncID == null) {
 					// new Android event
-					CountDirtyRows += 1;
+					String newGUID = java.util.UUID.randomUUID().toString();
+					SyncID = caldavCalendarUri.getPath() + newGUID + "-caldavsyncadapter.ics";
+					//ev.ContentValues.put(Events._SYNC_ID, SyncID);
 					ev.createIcs();
+					
+					if (facade.createEvent(URI.create(SyncID), ev.getIcsEvent())) {
+						ContentValues values = new ContentValues();
+						values.put(Events._SYNC_ID, SyncID);
+						values.put(Event.ceTAG, facade.getLastETag());
+						values.put(Events.DIRTY, 0);
+						
+						int rowCount = provider.update(asSyncAdapter(ev.getUri(), account.name, account.type), values, null, null);
+						if (rowCount == 1)
+							countNewRows += 1;
+					}
+					countDirtyRows += 1;
 				} else if (Deleted) {
 					// deleted Android event
-					CountDirtyRows += 1;
+					if (facade.deleteEvent(URI.create(SyncID))) {
+						String mSelectionClause = "(" + Events._ID +  "= ?)";
+						String[] mSelectionArgs = {String.valueOf(EventID)};
+						
+						int countDeleted = provider.delete(asSyncAdapter(Events.CONTENT_URI, account.name, account.type), mSelectionClause, mSelectionArgs);	
+						
+						if (countDeleted == 1)
+							countDeletedRows += 1;
+					}
+					countDirtyRows += 1;
 				} else {
 					// TODO: remove this from "else"
 					selection = "(" + Events._ID + "= ?)";
@@ -344,13 +374,14 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 					int RowCount = provider.update(asSyncAdapter(ev.getUri(), account.name, account.type), ev.ContentValues, null, null);
 
 					if (RowCount == 1)
-						CountDirtyRows += 1;
+						countDirtyRows += 1;
 				}
 			}
 			curEvent.close();
 
 			//if (CountDirtyRows > 0)
-			//Log.d(TAG,"Dirty Rows in calendar:" + String.valueOf(CountDirtyRows) + " " + calendarUri.toString());
+			Log.i(TAG,"Android Rows inserted:  " + String.valueOf(countNewRows));
+			Log.i(TAG,"Android Rows deleted:  " + String.valueOf(countDeletedRows));
 			
 			//Result = true;
 		} catch (RemoteException e) {
@@ -358,7 +389,7 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 		}
 		
 		//return Result;
-		return CountDirtyRows;
+		return countDirtyRows;
 	}
 	
 	/**
@@ -674,10 +705,7 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 			contentValues.put(Calendars.CALENDAR_ACCESS_LEVEL, Calendars.CAL_ACCESS_OWNER);
 			
 			if (!calendar.getCalendarColor().equals("")) {
-				setCalendarColor(account, provider, returnedCalendarUri, calendar.getCalendarColor());
-				String calendarColor = calendar.getCalendarColor().replace("#", "");
-				long color = Long.parseLong(calendarColor, 16);
-				contentValues.put(Calendars.CALENDAR_COLOR, color);
+				contentValues.put(Calendars.CALENDAR_COLOR, calendar.getCalendarColorAsLong());
 			} else {
 				// find a color
 				int index = calendarCount(account, provider);
@@ -694,7 +722,7 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 		} else {
 			returnedCalendarUri = getCalendarUri(account, provider, calendar);
 			if (!calendar.getCalendarColor().equals(""))
-				setCalendarColor(account, provider, returnedCalendarUri, calendar.getCalendarColor());
+				setCalendarColor(account, provider, returnedCalendarUri, calendar);
 		}
 		
 		
@@ -849,12 +877,10 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 		provider.update(asSyncAdapter(calendarUri, account.name, account.type), mUpdateValues, null, null);
 	}
 	private void setCalendarColor(Account account, ContentProviderClient provider,
-			Uri calendarUri, String calendarColor) throws RemoteException {
-		calendarColor = calendarColor.replace("#", "");
-		long color = Long.parseLong(calendarColor, 16);
-		
+			Uri calendarUri, Calendar calendar) throws RemoteException {
+	
 		ContentValues mUpdateValues = new ContentValues();
-		mUpdateValues.put(Calendars.CALENDAR_COLOR, color);
+		mUpdateValues.put(Calendars.CALENDAR_COLOR, calendar.getCalendarColorAsLong());
 		
 		provider.update(asSyncAdapter(calendarUri, account.name, account.type), mUpdateValues, null, null);
 	}

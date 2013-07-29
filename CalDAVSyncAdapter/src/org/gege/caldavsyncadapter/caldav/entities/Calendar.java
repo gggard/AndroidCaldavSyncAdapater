@@ -64,4 +64,10 @@ public class Calendar {
 		return calendarColor;
 	}
 
+	public long getCalendarColorAsLong(){
+		String strColor = calendarColor.replace("#", "");
+		long lngColor = Long.parseLong(strColor, 16);
+		return lngColor;
+	}
+	
 }

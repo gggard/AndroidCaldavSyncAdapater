@@ -50,7 +50,9 @@ import org.apache.http.auth.AuthenticationException;
 import org.apache.http.auth.UsernamePasswordCredentials;
 import org.apache.http.client.ClientProtocolException;
 import org.apache.http.client.HttpClient;
+import org.apache.http.client.methods.HttpDelete;
 import org.apache.http.client.methods.HttpGet;
+import org.apache.http.client.methods.HttpPut;
 import org.apache.http.conn.HttpHostConnectException;
 import org.apache.http.conn.params.ConnManagerPNames;
 import org.apache.http.conn.params.ConnPerRouteBean;
@@ -98,13 +100,16 @@ public class CaldavFacade {
 	private URL url;
 
 	private static HttpHost targetHost;
+	
+	private int lastStatusCode;
+	private String lastETag;
+	private String lastDav;
 
 	protected HttpClient getHttpClient() {
 
 		HttpParams params = new BasicHttpParams();
 		params.setParameter(ConnManagerPNames.MAX_TOTAL_CONNECTIONS, 30);
-		params.setParameter(ConnManagerPNames.MAX_CONNECTIONS_PER_ROUTE,
-				new ConnPerRouteBean(30));
+		params.setParameter(ConnManagerPNames.MAX_CONNECTIONS_PER_ROUTE, new ConnPerRouteBean(30));
 		params.setParameter(HttpProtocolParams.USE_EXPECT_CONTINUE, false);
 		HttpProtocolParams.setVersion(params, HttpVersion.HTTP_1_1);
 
@@ -113,26 +118,21 @@ public class CaldavFacade {
 
 		SchemeRegistry registry = new SchemeRegistry();
 		registry.register(new Scheme("http", new PlainSocketFactory(), 80));
-		registry.register(new Scheme("https", (trustAll ? EasySSLSocketFactory
-				.getSocketFactory() : SSLSocketFactory.getSocketFactory()), 443));
-		DefaultHttpClient client = new DefaultHttpClient(
-				new ThreadSafeClientConnManager(params, registry), params);
+		registry.register(new Scheme("https", (trustAll ? EasySSLSocketFactory.getSocketFactory() : SSLSocketFactory.getSocketFactory()), 443));
+		DefaultHttpClient client = new DefaultHttpClient(new ThreadSafeClientConnManager(params, registry), params);
 
 		return client;
 	}
 
-	public CaldavFacade(String mUser, String mPassword, String mURL)
-			throws MalformedURLException {
+	public CaldavFacade(String mUser, String mPassword, String mURL) throws MalformedURLException {
 		url = new URL(mURL);
 
 		httpClient = getHttpClient();
 
-		UsernamePasswordCredentials upc = new UsernamePasswordCredentials(
-				mUser, mPassword);
+		UsernamePasswordCredentials upc = new UsernamePasswordCredentials(mUser, mPassword);
 
 		AuthScope as = new AuthScope(url.getHost(), -1);
-		((AbstractHttpClient) httpClient).getCredentialsProvider()
-				.setCredentials(as, upc);
+		((AbstractHttpClient) httpClient).getCredentialsProvider().setCredentials(as, upc);
 
 		BasicHttpContext localContext = new BasicHttpContext();
 
@@ -180,9 +180,7 @@ public class CaldavFacade {
 	 * @throws ParserConfigurationException
 	 * @throws SAXException
 	 */
-	public TestConnectionResult testConnection()
-			throws HttpHostConnectException, IOException, URISyntaxException,
-			ParserConfigurationException, SAXException {
+	public TestConnectionResult testConnection() throws HttpHostConnectException, IOException, URISyntaxException, ParserConfigurationException, SAXException {
 		Log.d(TAG, "start testConnection ");
 		try {
 			List<Calendar> calendars = new ArrayList<Calendar>();
@@ -221,8 +219,7 @@ public class CaldavFacade {
 	 * @throws AuthenticationException
 	 * @throws FileNotFoundException
 	 */
-	private List<Calendar> forceGetCalendarsFromUri(Context context, URI uri)
-			throws AuthenticationException, FileNotFoundException {
+	private List<Calendar> forceGetCalendarsFromUri(Context context, URI uri) throws AuthenticationException, FileNotFoundException {
 		List<Calendar> calendars = new ArrayList<Calendar>();
 		Exception exception = null;
 		try {
@@ -492,12 +489,24 @@ public class CaldavFacade {
 			throws AuthenticationException, FileNotFoundException,
 			ClientProtocolException {
 		final int statusCode = response.getStatusLine().getStatusCode();
+		lastStatusCode = statusCode;
+		if (response.containsHeader("ETag"))
+			lastETag = response.getFirstHeader("ETag").getValue();
+		else
+			lastETag = "";
+		if (response.containsHeader("DAV"))
+			lastDav = response.getFirstHeader("DAV").getValue();
+		else
+			lastDav = "";
+		
 		switch (statusCode) {
 		case 401:
 			throw new AuthenticationException();
 		case 404:
 			throw new FileNotFoundException();
 		case 200:
+		case 201:
+		case 204:
 		case 207:
 			return;
 		default:
@@ -517,7 +526,28 @@ public class CaldavFacade {
 		}
 		return request;
 	}
+	
+	private HttpDelete createDeleteRequest(URI uri) {
+		HttpDelete request = new HttpDelete();
+		request.setURI(uri);
+		request.setHeader("Content-Type", "application/xml;charset=\"UTF-8\"");
+		return request;
+	}
 
+	private HttpPut createPutRequest(URI uri, String data, int depth) {
+		HttpPut request = new HttpPut();
+		request.setURI(uri);
+		request.setHeader("Depth", Integer.toString(depth));
+		request.setHeader("Content-Type", "application/xml;charset=\"UTF-8\"");
+		try {
+			//request.setEntity(new StringEntity(data, "UTF-8"));
+			request.setEntity(new StringEntity(data));
+		} catch (UnsupportedEncodingException e) {
+			throw new AssertionError("UTF-8 is unknown");
+		}
+		return request;
+	}
+	
 	public static void fetchEventBody(CalendarEvent calendarEvent)
 			throws ClientProtocolException, IOException {
 		HttpGet request = null;
@@ -543,5 +573,51 @@ public class CaldavFacade {
 
 		Log.d(TAG, "HttpResponse GET event status=" + response.getStatusLine()
 				+ " body= " + body);
+	}
+	
+	public boolean createEvent(URI uri, String data) {
+		boolean Result = false;
+		
+		try {
+			HttpPut request = createPutRequest(uri, data, 1);
+			HttpResponse response = httpClient.execute(targetHost, request);
+			checkStatus(response);
+			if (lastStatusCode == 201)
+				Result = true;
+		} catch (ClientProtocolException e) {
+			e.printStackTrace();
+		} catch (IOException e) {
+			e.printStackTrace();
+		} catch (AuthenticationException e) {
+			e.printStackTrace();
+		}
+		return Result;
+	}
+	
+	public String getLastETag() {
+		return lastETag;
+	}
+	
+	public String getLastDav() {
+		return lastDav;
+	}
+	
+	public boolean deleteEvent(URI calendarEventUri) {
+		boolean Result = false;
+		
+		try {
+			HttpDelete request = createDeleteRequest(calendarEventUri);
+			HttpResponse response = httpClient.execute(targetHost, request);
+			checkStatus(response);
+			Result = true;
+		} catch (ClientProtocolException e) {
+			e.printStackTrace();
+		} catch (IOException e) {
+			e.printStackTrace();
+		} catch (AuthenticationException e) {
+			e.printStackTrace();
+		}
+		
+		return Result;
 	}
 }
