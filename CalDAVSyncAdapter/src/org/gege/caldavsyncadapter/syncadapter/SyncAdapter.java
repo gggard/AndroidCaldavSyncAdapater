@@ -123,7 +123,7 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 			
 			CaldavFacade facade = new CaldavFacade(account.name, mAccountManager.getPassword(account), url);
 			calendarList = facade.getCalendarList(getContext());
-			String davProperties = facade.getLastDav();
+			//String davProperties = facade.getLastDav();
 			
 			for (Calendar calendar : calendarList) {
 				Log.i(TAG, "Detected calendar name="+calendar.getDisplayName()+" URI="+calendar.getURI());
@@ -142,10 +142,23 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 					
 				} else {
 					Log.d(TAG, "CTag has not changed, nothing to do");
+
+					long CalendarID = ContentUris.parseId(calendarUri);
+					String selection = "(" + Events.CALENDAR_ID + " = ?)";
+					String[] selectionArgs = new String[] {String.valueOf(CalendarID)}; 
+					Cursor countCursor = provider.query(Events.CONTENT_URI, new String[] {"count(*) AS count"},
+				                selection,
+				                selectionArgs,
+				                null);
+
+				        countCursor.moveToFirst();
+				        int count = countCursor.getInt(0);
+				        syncResult.stats.numSkippedEntries += count;
 				}
 				
-				int rowDirty = this.checkDirtyAndroidEvents(provider, account, calendarUri, facade, calendar.getURI());
-				Log.i(TAG,"Rows dirty:    " + String.valueOf(rowDirty));
+				this.checkDirtyAndroidEvents(provider, account, calendarUri, facade, calendar.getURI(),  syncResult.stats);
+				//int rowDirty = this.checkDirtyAndroidEvents(provider, account, calendarUri, facade, calendar.getURI(),  syncResult.stats);
+				//Log.i(TAG,"Rows dirty:    " + String.valueOf(rowDirty));
 			}
         /*} catch (final AuthenticatorException e) {
             syncResult.stats.numParseExceptions++;
@@ -212,7 +225,7 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 		
 		int rowInsert = 0;
 		int rowUpdate = 0;
-		int rawTag = 0;
+		int rowTag = 0;
 		int rowDelete = 0;
 		int rowUntag = 0;
 		int rowSkip = 0;
@@ -246,7 +259,7 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 				}
 				if (androidEvent != null)
 					if (tagAndroidEvent(provider, account, androidEvent))
-						rawTag += 1;
+						rowTag += 1;
 				
 				
 			} catch (ParserException ex) {
@@ -271,10 +284,10 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 		Log.i(TAG,"Statistiks for AndroidCalendar: " + calendarUri.toString());
 		Log.i(TAG,"Rows inserted: " + String.valueOf(rowInsert));
 		Log.i(TAG,"Rows updated:  " + String.valueOf(rowUpdate));
-		Log.i(TAG,"Rows tagged:   " + String.valueOf(rawTag));
 		Log.i(TAG,"Rows deleted:  " + String.valueOf(rowDelete));
-		Log.i(TAG,"Rows reseted:  " + String.valueOf(rowUntag));
 		Log.i(TAG,"Rows skipped:  " + String.valueOf(rowSkip));
+		Log.i(TAG,"Rows tagged:   " + String.valueOf(rowTag));
+		Log.i(TAG,"Rows untagged: " + String.valueOf(rowUntag));
 		
 		stats.numInserts += rowInsert;
 		stats.numUpdates += rowUpdate;
@@ -293,7 +306,7 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 	 * @param calendarUri
 	 * @return count of dirty events
 	 */
-	private int checkDirtyAndroidEvents(ContentProviderClient provider, Account account, Uri calendarUri, CaldavFacade facade, URI caldavCalendarUri) {
+	private int checkDirtyAndroidEvents(ContentProviderClient provider, Account account, Uri calendarUri, CaldavFacade facade, URI caldavCalendarUri, SyncStats stats) {
 		//boolean Result = false;
 		Cursor curEvent = null;
 		Cursor curAttendee = null;
@@ -301,9 +314,10 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 		Long EventID;
 		Long CalendarID;
 		AndroidEvent ev = null;
-		int countDirtyRows = 0;
-		int countNewRows = 0;
-		int countDeletedRows = 0;
+		int rowDirty = 0;
+		int rowInsert = 0;
+		int rowUpdate = 0;
+		int rowDelete = 0;
 		
 		try {
 			CalendarID = ContentUris.parseId(calendarUri);
@@ -351,9 +365,9 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 						
 						int rowCount = provider.update(asSyncAdapter(ev.getUri(), account.name, account.type), values, null, null);
 						if (rowCount == 1)
-							countNewRows += 1;
+							rowInsert += 1;
 					}
-					countDirtyRows += 1;
+					//rowDirty += 1;
 				} else if (Deleted) {
 					// deleted Android event
 					if (facade.deleteEvent(URI.create(SyncID))) {
@@ -363,9 +377,9 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 						int countDeleted = provider.delete(asSyncAdapter(Events.CONTENT_URI, account.name, account.type), mSelectionClause, mSelectionArgs);	
 						
 						if (countDeleted == 1)
-							countDeletedRows += 1;
+							rowDelete += 1;
 					}
-					countDirtyRows += 1;
+					//rowDirty += 1;
 				} else {
 					// TODO: remove this from "else"
 					selection = "(" + Events._ID + "= ?)";
@@ -374,14 +388,23 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 					int RowCount = provider.update(asSyncAdapter(ev.getUri(), account.name, account.type), ev.ContentValues, null, null);
 
 					if (RowCount == 1)
-						countDirtyRows += 1;
+						rowDirty += 1;
 				}
 			}
 			curEvent.close();
 
-			//if (CountDirtyRows > 0)
-			Log.i(TAG,"Android Rows inserted:  " + String.valueOf(countNewRows));
-			Log.i(TAG,"Android Rows deleted:  " + String.valueOf(countDeletedRows));
+			if ((rowInsert > 0) || (rowUpdate > 0) || (rowDelete > 0) || (rowDirty > 0)) {
+				Log.i(TAG,"Android Rows inserted: " + String.valueOf(rowInsert));
+				Log.i(TAG,"Android Rows updated:  " + String.valueOf(rowUpdate));
+				Log.i(TAG,"Android Rows deleted:  " + String.valueOf(rowDelete));
+				Log.i(TAG,"Android Rows dirty:    " + String.valueOf(rowDirty));
+			}
+			
+			stats.numInserts += rowInsert;
+			stats.numUpdates += rowUpdate;
+			stats.numDeletes += rowDelete;
+			stats.numSkippedEntries += rowDirty;
+			stats.numEntries += rowInsert + rowUpdate + rowDelete;
 			
 			//Result = true;
 		} catch (RemoteException e) {
@@ -389,7 +412,7 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 		}
 		
 		//return Result;
-		return countDirtyRows;
+		return rowDirty;
 	}
 	
 	/**

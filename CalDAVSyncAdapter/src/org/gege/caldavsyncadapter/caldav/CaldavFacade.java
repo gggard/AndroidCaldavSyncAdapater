@@ -339,7 +339,7 @@ public class CaldavFacade {
 		parseXML(response, calendarsHandler);
 		List<Calendar> result = calendarsHandler.calendars;
 		if (BuildConfig.DEBUG) {
-			Log.d(TAG,
+			Log.i(TAG,
 					result.size() + " calendars found in set "
 							+ calendarSet.toString());
 		}
