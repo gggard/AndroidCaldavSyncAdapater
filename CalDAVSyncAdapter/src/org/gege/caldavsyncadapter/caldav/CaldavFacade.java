@@ -105,6 +105,9 @@ public class CaldavFacade {
 	private String lastETag;
 	private String lastDav;
 
+	private String mstrcHeaderIfMatch = "If-Match";
+	private String mstrcHeaderIfNoneMatch = "If-None-Match";
+
 	protected HttpClient getHttpClient() {
 
 		HttpParams params = new BasicHttpParams();
@@ -569,7 +572,7 @@ public class CaldavFacade {
 				body += line + "\n";
 		} while (line != null);
 
-		calendarEvent.setICS(body);
+		calendarEvent.setICSasString(body);
 
 		Log.d(TAG, "HttpResponse GET event status=" + response.getStatusLine()
 				+ " body= " + body);
@@ -580,10 +583,14 @@ public class CaldavFacade {
 		
 		try {
 			HttpPut request = createPutRequest(uri, data, 1);
+			request.addHeader(mstrcHeaderIfNoneMatch, "*");
 			HttpResponse response = httpClient.execute(targetHost, request);
 			checkStatus(response);
-			if (lastStatusCode == 201)
+			if (lastStatusCode == 201) {
 				Result = true;
+			} else {
+				Log.w(TAG, "Unkown StatusCode during creation of an event");
+			}
 		} catch (ClientProtocolException e) {
 			e.printStackTrace();
 		} catch (IOException e) {
@@ -602,14 +609,19 @@ public class CaldavFacade {
 		return lastDav;
 	}
 	
-	public boolean deleteEvent(URI calendarEventUri) {
+	public boolean deleteEvent(URI calendarEventUri, String ETag) {
 		boolean Result = false;
 		
 		try {
 			HttpDelete request = createDeleteRequest(calendarEventUri);
+			request.addHeader(mstrcHeaderIfMatch, ETag);
 			HttpResponse response = httpClient.execute(targetHost, request);
 			checkStatus(response);
-			Result = true;
+			if (lastStatusCode == 204) {
+				Result = true;
+			} else {
+				Log.w(TAG, "Unkown StatusCode during deletion of an event");
+			}
 		} catch (ClientProtocolException e) {
 			e.printStackTrace();
 		} catch (IOException e) {

@@ -313,7 +313,7 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 		Cursor curReminder = null;
 		Long EventID;
 		Long CalendarID;
-		AndroidEvent ev = null;
+		AndroidEvent androidEvent = null;
 		int rowDirty = 0;
 		int rowInsert = 0;
 		int rowUpdate = 0;
@@ -329,8 +329,8 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 				EventID = curEvent.getLong(curEvent.getColumnIndex(Events._ID));
 				Uri returnedUri = ContentUris.withAppendedId(Events.CONTENT_URI, EventID);
 				
-				ev = new AndroidEvent(returnedUri, calendarUri);
-				ev.readContentValues(curEvent);
+				androidEvent = new AndroidEvent(returnedUri, calendarUri);
+				androidEvent.readContentValues(curEvent);
 				
 				selection = "(" + Attendees.EVENT_ID + " = ?)";
 				selectionArgs = new String[] {String.valueOf(EventID)};
@@ -338,12 +338,12 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 				selection = "(" + Reminders.EVENT_ID + " = ?)";
 				selectionArgs = new String[] {String.valueOf(EventID)};
 				curReminder = provider.query(Reminders.CONTENT_URI, null, selection, selectionArgs, null);
-				ev.readAttendees(curAttendee);
-				ev.readReminder(curReminder);
+				androidEvent.readAttendees(curAttendee);
+				androidEvent.readReminder(curReminder);
 				curAttendee.close();
 				curReminder.close();
 				
-				String SyncID = ev.ContentValues.getAsString(Events._SYNC_ID);
+				String SyncID = androidEvent.ContentValues.getAsString(Events._SYNC_ID);
 				
 				boolean Deleted = false;
 				int intDeleted = 0;
@@ -355,22 +355,22 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 					String newGUID = java.util.UUID.randomUUID().toString();
 					SyncID = caldavCalendarUri.getPath() + newGUID + "-caldavsyncadapter.ics";
 					//ev.ContentValues.put(Events._SYNC_ID, SyncID);
-					ev.createIcs();
+					androidEvent.createIcs();
 					
-					if (facade.createEvent(URI.create(SyncID), ev.getIcsEvent())) {
+					if (facade.createEvent(URI.create(SyncID), androidEvent.getIcsEvent().toString())) {
 						ContentValues values = new ContentValues();
 						values.put(Events._SYNC_ID, SyncID);
 						values.put(Event.ceTAG, facade.getLastETag());
 						values.put(Events.DIRTY, 0);
 						
-						int rowCount = provider.update(asSyncAdapter(ev.getUri(), account.name, account.type), values, null, null);
+						int rowCount = provider.update(asSyncAdapter(androidEvent.getUri(), account.name, account.type), values, null, null);
 						if (rowCount == 1)
 							rowInsert += 1;
 					}
 					//rowDirty += 1;
 				} else if (Deleted) {
 					// deleted Android event
-					if (facade.deleteEvent(URI.create(SyncID))) {
+					if (facade.deleteEvent(URI.create(SyncID), androidEvent.getETag())) {
 						String mSelectionClause = "(" + Events._ID +  "= ?)";
 						String[] mSelectionArgs = {String.valueOf(EventID)};
 						
@@ -382,10 +382,42 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 					//rowDirty += 1;
 				} else {
 					// TODO: remove this from "else"
+					
+/*					CalendarEvent calendarEvent = new CalendarEvent();
+					calendarEvent.setICSasString(androidEvent.getIcsEvent().toString());
+					try {
+						calendarEvent.parseIcs();
+					} catch (CaldavProtocolException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					} catch (IOException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					} catch (ParserException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
+					calendarEvent.setAndroidCalendarId(androidEvent.getAndroidCalendarId());
+					try {
+						this.updateAndroidEvent(provider, account, androidEvent, calendarEvent);
+					} catch (ClientProtocolException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					} catch (IOException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					} catch (CaldavProtocolException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					} catch (ParserException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
+*/					
 					selection = "(" + Events._ID + "= ?)";
 					selectionArgs = new String[] {EventID.toString()};
-					ev.ContentValues.put(Events.DIRTY, 0);
-					int RowCount = provider.update(asSyncAdapter(ev.getUri(), account.name, account.type), ev.ContentValues, null, null);
+					androidEvent.ContentValues.put(Events.DIRTY, 0);
+					int RowCount = provider.update(asSyncAdapter(androidEvent.getUri(), account.name, account.type), androidEvent.ContentValues, null, null);
 
 					if (RowCount == 1)
 						rowDirty += 1;
@@ -498,7 +530,9 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 		int Rows = 0;
 		
 		if (BodyFetched) {
-			calendarEvent.readContentValues(androidEvent.getAndroidCalendarUri());
+			calendarEvent.readContentValues();
+			//calendarEvent.setAndroidCalendarId(ContentUris.parseId(androidEvent.getAndroidCalendarUri()));
+			calendarEvent.setAndroidCalendarId(androidEvent.getAndroidCalendarId());
 			calendarEvent.setAndroidEventUri(androidEvent.getUri());
 		
 			Log.d(TAG, "AndroidEvent is dirty: " + androidEvent.ContentValues.getAsString(Events.DIRTY));
@@ -673,7 +707,9 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 		int CountReminders = 0;
 		
 		if (BodyFetched) {
-			calendarEvent.readContentValues(calendarUri);
+			//calendarEvent.readContentValues(calendarUri);
+			calendarEvent.readContentValues();
+			calendarEvent.setAndroidCalendarId(ContentUris.parseId(calendarUri));
 		
 			Uri uri = provider.insert(asSyncAdapter(Events.CONTENT_URI, account.name, account.type), calendarEvent.ContentValues);
 			calendarEvent.setAndroidEventUri(uri);
@@ -823,8 +859,10 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 		// Submit the query and get a Cursor object back. 
 		cur = provider.query(uri, CALENDAR_PROJECTION, selection, selectionArgs, null);
 		
-		Result = (cur.getCount() != 0);
-		cur.close();
+		if (cur != null) {
+			Result = (cur.getCount() != 0);
+			cur.close();
+		}
 		
 		return Result;
 	}

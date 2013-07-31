@@ -88,8 +88,8 @@ public class AndroidEvent extends org.gege.caldavsyncadapter.Event {
 
 	private Calendar mCalendar = null;
 	
-	public String getIcsEvent() {
-		return mCalendar.toString();
+	public Calendar getIcsEvent() {
+		return mCalendar;
 	}
 	
 	public AndroidEvent(Uri uri, Uri calendarUri) {
@@ -218,6 +218,12 @@ public class AndroidEvent extends org.gege.caldavsyncadapter.Event {
 					partstat = new PartStat(PartStat.NEEDS_ACTION.getValue());
 				else if (Status == Attendees.ATTENDEE_STATUS_ACCEPTED)
 					partstat = new PartStat(PartStat.ACCEPTED.getValue());
+				else if (Status == Attendees.ATTENDEE_STATUS_DECLINED)
+					partstat = new PartStat(PartStat.DECLINED.getValue());
+				else if (Status == Attendees.ATTENDEE_STATUS_NONE)
+					partstat = new PartStat(PartStat.COMPLETED.getValue());
+				else if (Status == Attendees.ATTENDEE_STATUS_TENTATIVE)
+					partstat = new PartStat(PartStat.TENTATIVE.getValue());
 				else 
 					partstat = new PartStat(PartStat.NEEDS_ACTION.getValue());
 				paraList.add(partstat);

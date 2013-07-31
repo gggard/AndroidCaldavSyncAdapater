@@ -64,4 +64,19 @@ abstract public class Event {
 		
 		return Result;
 	}
+	
+	public void setAndroidCalendarId(long ID) {
+		if (this.ContentValues.containsKey(Events.CALENDAR_ID))
+			this.ContentValues.remove(Events.CALENDAR_ID);
+		
+		this.ContentValues.put(Events.CALENDAR_ID, ID);
+	}
+	
+	public long getAndroidCalendarId() {
+		long Result = -1;
+		if (this.ContentValues.containsKey(Events.CALENDAR_ID))
+			Result = this.ContentValues.getAsLong(Events.CALENDAR_ID);
+		return Result;
+	}
+
 }

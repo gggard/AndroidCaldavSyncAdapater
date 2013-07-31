@@ -23,7 +23,9 @@ package org.gege.caldavsyncadapter.caldav.entities;
 
 import java.io.IOException;
 import java.io.StringReader;
+import java.io.UnsupportedEncodingException;
 import java.net.URI;
+import java.net.URLDecoder;
 import java.text.ParseException;
 import net.fortuna.ical4j.data.CalendarBuilder;
 import net.fortuna.ical4j.data.ParserException;
@@ -46,6 +48,7 @@ import net.fortuna.ical4j.model.parameter.Role;
 import net.fortuna.ical4j.model.property.Clazz;
 import net.fortuna.ical4j.model.property.Status;
 import net.fortuna.ical4j.util.CompatibilityHints;
+
 import org.apache.http.client.ClientProtocolException;
 import org.gege.caldavsyncadapter.android.entities.AndroidEvent;
 import org.gege.caldavsyncadapter.caldav.CaldavFacade;
@@ -66,8 +69,8 @@ import android.util.Log;
 public class CalendarEvent extends org.gege.caldavsyncadapter.Event {
 	private static final String TAG = "CalendarEvent";
 	
-	private String ics;
-
+	private String stringIcs;
+	
 	private Calendar calendar;
 
 	private Component calendarComponent;
@@ -99,8 +102,8 @@ public class CalendarEvent extends org.gege.caldavsyncadapter.Event {
 		this.muri = uri;
 	}
 
-	public void setICS(String ics) {
-		this.ics = ics;
+	public void setICSasString(String ics) {
+		this.stringIcs = ics;
 	}
 	
 	/**
@@ -121,6 +124,7 @@ public class CalendarEvent extends org.gege.caldavsyncadapter.Event {
 		return mAndroidEventUri;
 	}
 	
+	
 	/**
 	 * reads all ContentValues from the caldav source
 	 * @param calendarUri
@@ -128,7 +132,8 @@ public class CalendarEvent extends org.gege.caldavsyncadapter.Event {
 	 * @see org.gege.caldavsyncadapter.syncadapter.SyncAdapter#createAndroidEvent(ContentProviderClient provider, Account account, Uri calendarUri, CalendarEvent calendarEvent)
 	 * @see org.gege.caldavsyncadapter.syncadapter.SyncAdapter#updateAndroidEvent(ContentProviderClient provider, Account account, AndroidEvent androidEvent, CalendarEvent calendarEvent)
 	 */
-	public boolean readContentValues(Uri calendarUri) {
+	//public boolean readContentValues(Uri calendarUri) {
+	public boolean readContentValues() {
 		this.ContentValues.put(Events.DTSTART, this.getStartTime());
 		this.ContentValues.put(Events.EVENT_TIMEZONE, this.getTimeZoneStart());
 
@@ -148,7 +153,7 @@ public class CalendarEvent extends org.gege.caldavsyncadapter.Event {
 		this.ContentValues.put(Events.ALL_DAY, AllDay);
 		
 		this.ContentValues.put(Events.TITLE, this.getTitle());
-		this.ContentValues.put(Events.CALENDAR_ID, ContentUris.parseId(calendarUri));
+		//this.ContentValues.put(Events.CALENDAR_ID, ContentUris.parseId(calendarUri));
 		this.ContentValues.put(Events._SYNC_ID, this.getUri().toString());
 		this.ContentValues.put(ceTAG, this.getETag());
 		this.ContentValues.put(Events.DESCRIPTION, this.getDescription());
@@ -248,6 +253,7 @@ public class CalendarEvent extends org.gege.caldavsyncadapter.Event {
 		return Result;
 	}
 	
+	private String mstrcIcalPropertyError = "net.fortunal.ical4j.invalid:";
 	private ContentValues ReadAttendeeProperties(Property property, String Type) {
 		ContentValues Attendee = null;
 		
@@ -264,6 +270,15 @@ public class CalendarEvent extends org.gege.caldavsyncadapter.Event {
 		String strValue = property.getValue().replace("mailto:", "");
 		String strPARTSTAT = "";
 		
+		if (strValue.startsWith(mstrcIcalPropertyError)) {
+			strValue = strValue.replace(mstrcIcalPropertyError, "");
+			try {
+				strValue = URLDecoder.decode(strValue, "UTF-8");
+			} catch (UnsupportedEncodingException e) {
+				e.printStackTrace();
+			}
+		}
+		
 		if (CN != null)
 			strCN = CN.getValue();
 		if (ROLE != null)
@@ -272,6 +287,12 @@ public class CalendarEvent extends org.gege.caldavsyncadapter.Event {
 			strCUTYPE = CUTYPE.getValue();
 		if (PARTSTAT != null)
 			strPARTSTAT = PARTSTAT.getValue();
+		
+		if (strCN.equals("")) {
+			if (!strValue.equals("")) {
+				strCN = strValue;
+			}
+		}
 
 		if (!strCN.equals("")) {
 			if (strCUTYPE.equals("") || strCUTYPE.equals("INDIVIDUAL")) {
@@ -300,12 +321,19 @@ public class CalendarEvent extends org.gege.caldavsyncadapter.Event {
 				else
 					Attendee.put(Attendees.ATTENDEE_RELATIONSHIP, Attendees.RELATIONSHIP_NONE);
 
-				if (strPARTSTAT.equals("NEEDS-ACTION"))
+				if (strPARTSTAT.equals(PartStat.NEEDS_ACTION.getValue()))
 					Attendee.put(Attendees.ATTENDEE_STATUS, Attendees.ATTENDEE_STATUS_INVITED);
-				else if (strPARTSTAT.equals("ACCEPTED"))
+				else if (strPARTSTAT.equals(PartStat.ACCEPTED.getValue()))
 					Attendee.put(Attendees.ATTENDEE_STATUS, Attendees.ATTENDEE_STATUS_ACCEPTED);
-				else
+				else if (strPARTSTAT.equals(PartStat.DECLINED.getValue()))
+					Attendee.put(Attendees.ATTENDEE_STATUS, Attendees.ATTENDEE_STATUS_DECLINED);
+				else if (strPARTSTAT.equals(PartStat.COMPLETED.getValue()))
 					Attendee.put(Attendees.ATTENDEE_STATUS, Attendees.ATTENDEE_STATUS_NONE);
+				else if (strPARTSTAT.equals(PartStat.TENTATIVE.getValue()))
+					Attendee.put(Attendees.ATTENDEE_STATUS, Attendees.ATTENDEE_STATUS_TENTATIVE);
+				else
+					Attendee.put(Attendees.ATTENDEE_STATUS, Attendees.ATTENDEE_STATUS_INVITED);
+
 			}
 		}
 		
@@ -660,7 +688,7 @@ public class CalendarEvent extends org.gege.caldavsyncadapter.Event {
 	 * @throws IOException
 	 * @throws ParserException
 	 */
-	private boolean parseIcs() throws CaldavProtocolException, IOException, ParserException {
+	public boolean parseIcs() throws CaldavProtocolException, IOException, ParserException {
 		boolean Error = false;
 		
 		CalendarBuilder builder = new CalendarBuilder();
@@ -669,57 +697,33 @@ public class CalendarEvent extends org.gege.caldavsyncadapter.Event {
 		CompatibilityHints.setHintEnabled(CompatibilityHints.KEY_RELAXED_VALIDATION, true);
 		CompatibilityHints.setHintEnabled(CompatibilityHints.KEY_OUTLOOK_COMPATIBILITY, true);
 
-		StringReader reader = new StringReader(this.ics);
-
+		StringReader reader = new StringReader(this.stringIcs);
+		this.calendar = builder.build(reader);
 		
-			this.calendar = builder.build(reader);
-			
-			ComponentList components = null;
-			components = this.calendar.getComponents(Component.VEVENT);
+		ComponentList components = null;
+		components = this.calendar.getComponents(Component.VEVENT);
+		if (components.size() == 0) {
+			components = this.calendar.getComponents(Component.VTODO);
 			if (components.size() == 0) {
-				components = this.calendar.getComponents(Component.VTODO);
-				if (components.size() == 0) {
-					throw new CaldavProtocolException("unknown events in ICS");
-				} else {
-					//throw new CaldavProtocolException("unsupported event TO DO in ICS");
-					Log.e(TAG, "unsupported event TODO in ICS");
-					Error = true;
-				}
-			} else if (components.size() > 1) {
-				//throw new CaldavProtocolException("Several events in ICS");
-				Log.e(TAG, "Several events in ICS -> only first will be processed");
+				throw new CaldavProtocolException("unknown events in ICS");
+			} else {
+				Log.e(TAG, "unsupported event TODO in ICS");
+				Error = true;
 			}
+		} else if (components.size() > 1) {
+			Log.e(TAG, "Several events in ICS -> only first will be processed");
+		}
 
-			// get the TimeZone information
-			Component mCom = this.calendar.getComponent(Component.VTIMEZONE);
-			if (mCom != null)
-				mVTimeZone = (VTimeZone) this.calendar.getComponent(Component.VTIMEZONE);
-			if (mVTimeZone != null)
-				mTimeZone = new TimeZone(mVTimeZone);
+		// get the TimeZone information
+		Component mCom = this.calendar.getComponent(Component.VTIMEZONE);
+		if (mCom != null)
+			mVTimeZone = (VTimeZone) this.calendar.getComponent(Component.VTIMEZONE);
+		if (mVTimeZone != null)
+			mTimeZone = new TimeZone(mVTimeZone);
 
-			if (!Error)
-				calendarComponent = (Component) components.get(0);
-				//calendarComponent = (Component)this.calendar.getComponents(Component.VEVENT).get(0);
-			
-//				PropertyList properties = calendarComponent.getProperties();
-//				for (Object oo : properties) {
-//					Property p = (Property)oo;
-//					Log.d(TAG, "Event Property : "+p.getName()+" = "+p.getValue());
-//				}
-//				
-//				DateTime startDate = null;
-//				DateTime endDate = null;
-//				try {
-//					startDate = new DateTime(calendarComponent.getProperty("DTSTART").getValue());
-//					endDate = new DateTime(calendarComponent.getProperty("DTEND").getValue());
-//				} catch (ParseException e) {
-//					Log.e(TAG, "Date parsing exception",e);
-//				}
-//				
-//				Log.e(TAG, "DTSTART = "+startDate.getTime());
-//
-//				Log.e(TAG, "DTSTART = "+endDate.getTime());
-			
+		if (!Error)
+			calendarComponent = (Component) components.get(0);
+		
 			 
 		return !Error;
 	}
