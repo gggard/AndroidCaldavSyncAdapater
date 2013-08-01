@@ -361,6 +361,7 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 						ContentValues values = new ContentValues();
 						values.put(Events._SYNC_ID, SyncID);
 						values.put(Event.ceTAG, facade.getLastETag());
+						values.put(Event.cUID, newGUID);
 						values.put(Events.DIRTY, 0);
 						
 						int rowCount = provider.update(asSyncAdapter(androidEvent.getUri(), account.name, account.type), values, null, null);
@@ -382,16 +383,30 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 					//rowDirty += 1;
 				} else {
 					//androidEvent.createIcs(androidEvent.ContentValues());
-					androidEvent.createIcs(androidEvent.getUID());
-					
-					if (facade.updateEvent(URI.create(SyncID), androidEvent.getIcsEvent().toString(), androidEvent.getETag())) {
-						selection = "(" + Events._ID + "= ?)";
-						selectionArgs = new String[] {EventID.toString()};
-						androidEvent.ContentValues.put(Events.DIRTY, 0);
-						int RowCount = provider.update(asSyncAdapter(androidEvent.getUri(), account.name, account.type), androidEvent.ContentValues, null, null);
-
-						if (RowCount == 1)
-							rowUpdate += 1;
+					String uid = androidEvent.getUID();
+					if ((uid == null) || (uid.equals(""))) {
+						CalendarEvent calendarEvent = new CalendarEvent();
+						URI syncURI = new URI(SyncID);
+						calendarEvent.setUri(syncURI);
+						if (calendarEvent.fetchBody()) {
+							calendarEvent.readContentValues();
+							uid = calendarEvent.getUID();
+						}
+					}
+					if (uid != null) {
+						androidEvent.createIcs(uid);
+							
+						if (facade.updateEvent(URI.create(SyncID), androidEvent.getIcsEvent().toString(), androidEvent.getETag())) {
+							selection = "(" + Events._ID + "= ?)";
+							selectionArgs = new String[] {EventID.toString()};
+							androidEvent.ContentValues.put(Events.DIRTY, 0);
+							int RowCount = provider.update(asSyncAdapter(androidEvent.getUri(), account.name, account.type), androidEvent.ContentValues, null, null);
+			
+							if (RowCount == 1)
+								rowUpdate += 1;
+						}
+					} else {
+						rowDirty += 1;
 					}
 				}
 			}
@@ -412,6 +427,21 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 			
 			//Result = true;
 		} catch (RemoteException e) {
+			e.printStackTrace();
+		} catch (URISyntaxException e) {
+			// TODO Automatisch generierter Erfassungsblock
+			e.printStackTrace();
+		} catch (ClientProtocolException e) {
+			// TODO Automatisch generierter Erfassungsblock
+			e.printStackTrace();
+		} catch (IOException e) {
+			// TODO Automatisch generierter Erfassungsblock
+			e.printStackTrace();
+		} catch (CaldavProtocolException e) {
+			// TODO Automatisch generierter Erfassungsblock
+			e.printStackTrace();
+		} catch (ParserException e) {
+			// TODO Automatisch generierter Erfassungsblock
 			e.printStackTrace();
 		}
 		

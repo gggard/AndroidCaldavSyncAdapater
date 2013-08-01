@@ -1,7 +1,6 @@
 package org.gege.caldavsyncadapter;
 
 import android.content.ContentValues;
-import android.net.Uri;
 import android.provider.CalendarContract.Events;
 
 abstract public class Event {
@@ -30,16 +29,6 @@ abstract public class Event {
 	
 	abstract public String getETag();
 	abstract public void setETag(String ETag);
-
-	private Uri mCounterpartUri;
-	
-	public void setCounterpartUri(Uri uri) {
-		mCounterpartUri = uri;
-	}
-	
-	public Uri getCounterpartUri(Uri uri) {
-		return mCounterpartUri;
-	}
 
 	/**
 	 * returns a list of all items that are comparable with this sync adapter

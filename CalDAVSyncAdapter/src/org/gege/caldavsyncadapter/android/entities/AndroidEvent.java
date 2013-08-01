@@ -345,6 +345,8 @@ public class AndroidEvent extends org.gege.caldavsyncadapter.Event {
 			// DTEND
 			long lngEnd       = this.ContentValues.getAsLong(Events.DTEND);
 			String strTZEnd   = this.ContentValues.getAsString(Events.EVENT_END_TIMEZONE);
+			if (strTZEnd == null)
+				strTZEnd = strTZStart;
 			if (lngEnd > 0) {
 				DateTime dateEnd = new DateTime();
 				dateEnd.setTime(lngEnd);
