@@ -352,10 +352,10 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 
 				if (SyncID == null) {
 					// new Android event
-					String newGUID = java.util.UUID.randomUUID().toString();
-					SyncID = caldavCalendarUri.getPath() + newGUID + "-caldavsyncadapter.ics";
+					String newGUID = java.util.UUID.randomUUID().toString() + "-caldavsyncadapter";
+					SyncID = caldavCalendarUri.getPath() + newGUID + ".ics";
 					//ev.ContentValues.put(Events._SYNC_ID, SyncID);
-					androidEvent.createIcs();
+					androidEvent.createIcs(newGUID);
 					
 					if (facade.createEvent(URI.create(SyncID), androidEvent.getIcsEvent().toString())) {
 						ContentValues values = new ContentValues();
@@ -381,46 +381,18 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 					}
 					//rowDirty += 1;
 				} else {
-					// TODO: remove this from "else"
+					//androidEvent.createIcs(androidEvent.ContentValues());
+					androidEvent.createIcs(androidEvent.getUID());
 					
-/*					CalendarEvent calendarEvent = new CalendarEvent();
-					calendarEvent.setICSasString(androidEvent.getIcsEvent().toString());
-					try {
-						calendarEvent.parseIcs();
-					} catch (CaldavProtocolException e) {
-						// TODO Auto-generated catch block
-						e.printStackTrace();
-					} catch (IOException e) {
-						// TODO Auto-generated catch block
-						e.printStackTrace();
-					} catch (ParserException e) {
-						// TODO Auto-generated catch block
-						e.printStackTrace();
-					}
-					calendarEvent.setAndroidCalendarId(androidEvent.getAndroidCalendarId());
-					try {
-						this.updateAndroidEvent(provider, account, androidEvent, calendarEvent);
-					} catch (ClientProtocolException e) {
-						// TODO Auto-generated catch block
-						e.printStackTrace();
-					} catch (IOException e) {
-						// TODO Auto-generated catch block
-						e.printStackTrace();
-					} catch (CaldavProtocolException e) {
-						// TODO Auto-generated catch block
-						e.printStackTrace();
-					} catch (ParserException e) {
-						// TODO Auto-generated catch block
-						e.printStackTrace();
-					}
-*/					
-					selection = "(" + Events._ID + "= ?)";
-					selectionArgs = new String[] {EventID.toString()};
-					androidEvent.ContentValues.put(Events.DIRTY, 0);
-					int RowCount = provider.update(asSyncAdapter(androidEvent.getUri(), account.name, account.type), androidEvent.ContentValues, null, null);
+					if (facade.updateEvent(URI.create(SyncID), androidEvent.getIcsEvent().toString(), androidEvent.getETag())) {
+						selection = "(" + Events._ID + "= ?)";
+						selectionArgs = new String[] {EventID.toString()};
+						androidEvent.ContentValues.put(Events.DIRTY, 0);
+						int RowCount = provider.update(asSyncAdapter(androidEvent.getUri(), account.name, account.type), androidEvent.ContentValues, null, null);
 
-					if (RowCount == 1)
-						rowDirty += 1;
+						if (RowCount == 1)
+							rowUpdate += 1;
+					}
 				}
 			}
 			curEvent.close();

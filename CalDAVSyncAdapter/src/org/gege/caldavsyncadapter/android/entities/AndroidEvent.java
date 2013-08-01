@@ -21,7 +21,6 @@
 
 package org.gege.caldavsyncadapter.android.entities;
 
-import java.net.SocketException;
 import java.net.URISyntaxException;
 import java.text.ParseException;
 import net.fortuna.ical4j.model.Calendar;
@@ -60,8 +59,8 @@ import net.fortuna.ical4j.model.property.RRule;
 import net.fortuna.ical4j.model.property.Status;
 import net.fortuna.ical4j.model.property.Summary;
 import net.fortuna.ical4j.model.property.Trigger;
+import net.fortuna.ical4j.model.property.Uid;
 import net.fortuna.ical4j.model.property.Version;
-import net.fortuna.ical4j.util.UidGenerator;
 import android.database.Cursor;
 import android.net.Uri;
 import android.provider.CalendarContract.Attendees;
@@ -159,6 +158,7 @@ public class AndroidEvent extends org.gege.caldavsyncadapter.Event {
 		this.ContentValues.put(Events.EXRULE, cur.getString(cur.getColumnIndex(Events.EXRULE)));
 		this.ContentValues.put(Events.EXDATE, cur.getString(cur.getColumnIndex(Events.EXDATE)));		
 		this.ContentValues.put(Events.DIRTY, cur.getInt(cur.getColumnIndex(Events.DIRTY)));
+		this.ContentValues.put(cUID, cur.getString(cur.getColumnIndex(cUID)));
 		
 		return true;
 	}
@@ -288,7 +288,7 @@ public class AndroidEvent extends org.gege.caldavsyncadapter.Event {
 	 * @return success of the function
 	 * @see CalendarEvent#fetchBody()
 	 */
-	public boolean createIcs() {
+	public boolean createIcs(String strUid) {
 		boolean Result = false;
 		TimeZone timezone = null;
 		TimeZoneRegistry registry = TimeZoneRegistryFactory.getInstance().createRegistry();
@@ -371,9 +371,11 @@ public class AndroidEvent extends org.gege.caldavsyncadapter.Event {
 			if (this.ContentValues.containsKey(Events.RRULE)) {
 				String strRrule = this.ContentValues.getAsString(Events.RRULE);
 				if (strRrule != null) {
-					RRule rrule = new RRule();
-					rrule.setValue(strRrule);
-					propEvent.add(rrule);
+					if (!strRrule.equals("")) {
+						RRule rrule = new RRule();
+						rrule.setValue(strRrule);
+						propEvent.add(rrule);
+					}
 				}
 			}
 			
@@ -381,9 +383,11 @@ public class AndroidEvent extends org.gege.caldavsyncadapter.Event {
 			if (this.ContentValues.containsKey(Events.RDATE)) {
 				String strRdate = this.ContentValues.getAsString(Events.RDATE);
 				if (strRdate != null) {
-					RDate rdate = new RDate();
-					rdate.setValue(strRdate);
-					propEvent.add(rdate);
+					if (!strRdate.equals("")) {
+						RDate rdate = new RDate();
+						rdate.setValue(strRdate);
+						propEvent.add(rdate);
+					}
 				}
 			}
 			
@@ -391,9 +395,11 @@ public class AndroidEvent extends org.gege.caldavsyncadapter.Event {
 			if (this.ContentValues.containsKey(Events.EXRULE)) {
 				String strExrule = this.ContentValues.getAsString(Events.EXRULE);
 				if (strExrule != null) {
-					ExRule exrule = new ExRule();
-					exrule.setValue(strExrule);
-					propEvent.add(exrule);
+					if (!strExrule.equals("")) {
+						ExRule exrule = new ExRule();
+						exrule.setValue(strExrule);
+						propEvent.add(exrule);
+					}
 				}
 			}
 			
@@ -401,9 +407,11 @@ public class AndroidEvent extends org.gege.caldavsyncadapter.Event {
 			if (this.ContentValues.containsKey(Events.EXDATE)) {
 				String strExdate = this.ContentValues.getAsString(Events.EXDATE);
 				if (strExdate != null) {
-					ExDate exdate = new ExDate();
-					exdate.setValue(strExdate);
-					propEvent.add(exdate);
+					if (!strExdate.equals("")) {
+						ExDate exdate = new ExDate();
+						exdate.setValue(strExdate);
+						propEvent.add(exdate);
+					}
 				}
 			}
 			
@@ -427,8 +435,13 @@ public class AndroidEvent extends org.gege.caldavsyncadapter.Event {
 			
 			//LOCATION
 			if (this.ContentValues.containsKey(Events.EVENT_LOCATION)) {
-				Location location = new Location(this.ContentValues.getAsString(Events.EVENT_LOCATION));
-				propEvent.add(location);
+				String strLocation = this.ContentValues.getAsString(Events.EVENT_LOCATION);
+				if (strLocation != null) {
+					if (!strLocation.equals("")) { 
+						Location location = new Location(strLocation);
+						propEvent.add(location);
+					}
+				}
 			}
 			
 			//CLASS / ACCESS_LEVEL
@@ -464,8 +477,8 @@ public class AndroidEvent extends org.gege.caldavsyncadapter.Event {
 			}
 
 			//UID
-			UidGenerator ug = new UidGenerator("1");
-			propEvent.add(ug.generateUid());
+			Uid uid = new Uid(strUid);
+			propEvent.add(uid);
 
 			// Attendees
 			if (mAttendees.size() > 0) {
@@ -483,8 +496,6 @@ public class AndroidEvent extends org.gege.caldavsyncadapter.Event {
 				}
 			}
 			
-		} catch (SocketException e) {
-			e.printStackTrace();
 		} catch (ParseException e) {
 			e.printStackTrace();
 		}

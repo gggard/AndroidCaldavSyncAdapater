@@ -164,6 +164,7 @@ public class CalendarEvent extends org.gege.caldavsyncadapter.Event {
 		this.ContentValues.put(Events.RRULE, this.getRRule());
 		this.ContentValues.put(Events.EXRULE, this.getExRule());
 		this.ContentValues.put(Events.EXDATE, this.getExDate());
+		this.ContentValues.put(cUID, this.getUid());
 		
 		return true;
 	}
@@ -467,6 +468,16 @@ public class CalendarEvent extends org.gege.caldavsyncadapter.Event {
 			}
 		}
 
+		return Result;
+	}
+	
+	private String getUid() {
+		String Result = "";
+		Property prop = calendarComponent.getProperty(Property.UID);
+		if (prop != null) {
+			Result = prop.getValue();
+		}
+		
 		return Result;
 	}
 	

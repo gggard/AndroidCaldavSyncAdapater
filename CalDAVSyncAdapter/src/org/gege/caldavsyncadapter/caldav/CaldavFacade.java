@@ -578,6 +578,29 @@ public class CaldavFacade {
 				+ " body= " + body);
 	}
 	
+	public boolean updateEvent(URI uri, String data, String ETag) {
+		boolean Result = false;
+		
+		try {
+			HttpPut request = createPutRequest(uri, data, 1);
+			request.addHeader(mstrcHeaderIfMatch, ETag);
+			HttpResponse response = httpClient.execute(targetHost, request);
+			checkStatus(response);
+			if ((lastStatusCode == 200) || (lastStatusCode == 204)) {
+				Result = true;
+			} else {
+				Log.w(TAG, "Unkown StatusCode during creation of an event");
+			}
+		} catch (ClientProtocolException e) {
+			e.printStackTrace();
+		} catch (IOException e) {
+			e.printStackTrace();
+		} catch (AuthenticationException e) {
+			e.printStackTrace();
+		}
+		return Result;
+	}
+	
 	public boolean createEvent(URI uri, String data) {
 		boolean Result = false;
 		

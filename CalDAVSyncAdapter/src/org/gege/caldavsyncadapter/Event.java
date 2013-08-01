@@ -18,6 +18,11 @@ abstract public class Event {
 	 */
 	public static String cRawData = Events.SYNC_DATA3;
 
+	/*
+	 * stores the UID of an Event
+	 */
+	public static String cUID = Events.SYNC_DATA4;
+	
 	/**
 	 * the event transformed into ContentValues
 	 */
@@ -61,6 +66,7 @@ abstract public class Event {
 		Result.add(Events.RRULE);
 		Result.add(Events.EXRULE);
 		Result.add(Events.EXDATE);
+		Result.add(cUID);
 		
 		return Result;
 	}
@@ -79,4 +85,11 @@ abstract public class Event {
 		return Result;
 	}
 
+	public String getUID() {
+		String Result = "";
+		if (this.ContentValues.containsKey(cUID))
+			Result = this.ContentValues.getAsString(cUID);
+		
+		return Result;
+	}
 }
