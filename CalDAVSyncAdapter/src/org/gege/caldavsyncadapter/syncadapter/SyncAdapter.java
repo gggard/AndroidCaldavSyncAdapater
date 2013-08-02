@@ -130,35 +130,44 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 			
 				Uri calendarUri = getOrCreateCalendarUri(account, provider, calendar);
 
-				if ((FORCE_SYNCHRONIZE) ||
-					(getCalendarCTag(provider, calendarUri) == null) ||
-					(!getCalendarCTag(provider, calendarUri).equals(calendar.getcTag()))) {
-						Log.d(TAG, "CTag has changed, something to synchronise");
+				// check if the adapter was able to get an existing calendar or create a new one
+				if (calendarUri != null) {
+					if ((FORCE_SYNCHRONIZE) ||
+						(getCalendarCTag(provider, calendarUri) == null) ||
+						(!getCalendarCTag(provider, calendarUri).equals(calendar.getcTag()))) {
+							Log.d(TAG, "CTag has changed, something to synchronise");
+							
+							synchroniseEvents(facade,account, provider, calendarUri, calendar, syncResult.stats);
+							
+							Log.d(TAG, "Updating stored CTag");
+							setCalendarCTag(account, provider, calendarUri, calendar.getcTag());
 						
-						synchroniseEvents(facade,account, provider, calendarUri, calendar, syncResult.stats);
-						
-						Log.d(TAG, "Updating stored CTag");
-						setCalendarCTag(account, provider, calendarUri, calendar.getcTag());
-					
-				} else {
-					Log.d(TAG, "CTag has not changed, nothing to do");
-
-					long CalendarID = ContentUris.parseId(calendarUri);
-					String selection = "(" + Events.CALENDAR_ID + " = ?)";
-					String[] selectionArgs = new String[] {String.valueOf(CalendarID)}; 
-					Cursor countCursor = provider.query(Events.CONTENT_URI, new String[] {"count(*) AS count"},
-				                selection,
-				                selectionArgs,
-				                null);
-
+					} else {
+						Log.d(TAG, "CTag has not changed, nothing to do");
+	
+						long CalendarID = ContentUris.parseId(calendarUri);
+						String selection = "(" + Events.CALENDAR_ID + " = ?)";
+						String[] selectionArgs = new String[] {String.valueOf(CalendarID)}; 
+						Cursor countCursor = provider.query(Events.CONTENT_URI, new String[] {"count(*) AS count"},
+					                selection,
+					                selectionArgs,
+					                null);
+	
 				        countCursor.moveToFirst();
 				        int count = countCursor.getInt(0);
 				        syncResult.stats.numSkippedEntries += count;
+				        countCursor.close();
+					}
+					
+					this.checkDirtyAndroidEvents(provider, account, calendarUri, facade, calendar.getURI(),  syncResult.stats);
+					//int rowDirty = this.checkDirtyAndroidEvents(provider, account, calendarUri, facade, calendar.getURI(),  syncResult.stats);
+					//Log.i(TAG,"Rows dirty:    " + String.valueOf(rowDirty));
+				} else {
+					// this happens if the data provider failes to get an existing or create a new calendar
+					Log.e(TAG, "failed to get an existing or create a new calendar");
+					syncResult.stats.numIoExceptions += 1;
+					NotificationsHelper.signalSyncErrors(getContext(), "Caldav sync error (provider failed)", "the provider failed to get an existing or create a new calendar");
 				}
-				
-				this.checkDirtyAndroidEvents(provider, account, calendarUri, facade, calendar.getURI(),  syncResult.stats);
-				//int rowDirty = this.checkDirtyAndroidEvents(provider, account, calendarUri, facade, calendar.getURI(),  syncResult.stats);
-				//Log.i(TAG,"Rows dirty:    " + String.valueOf(rowDirty));
 			}
         /*} catch (final AuthenticatorException e) {
             syncResult.stats.numParseExceptions++;
@@ -776,10 +785,12 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 
 			returnedCalendarUri = provider.insert(asSyncAdapter(Calendars.CONTENT_URI, account.name, account.type), contentValues);
 
-			long newCalendarId = ContentUris.parseId(returnedCalendarUri);
-
-			Log.v(TAG, "New calendar created : URI="+newCalendarId+ " id="+newCalendarId);
-			
+			// it is possible that this calendar already exists but the provider failed to find it within isCalendarExist()
+			// the adapter would try to create a new calendar but the provider fails again to create a new calendar.
+			if (returnedCalendarUri != null) {
+				long newCalendarId = ContentUris.parseId(returnedCalendarUri);
+				Log.v(TAG, "New calendar created : URI="+newCalendarId+ " id="+newCalendarId);
+			}			
 		} else {
 			returnedCalendarUri = getCalendarUri(account, provider, calendar);
 			if (!calendar.getCalendarColor().equals(""))
