@@ -137,7 +137,8 @@ public class CalendarEvent extends org.gege.caldavsyncadapter.Event {
 		this.ContentValues.put(Events.DTSTART, this.getStartTime());
 		this.ContentValues.put(Events.EVENT_TIMEZONE, this.getTimeZoneStart());
 
-		if (this.getRRule().isEmpty() && this.getRDate().isEmpty()) {
+		//if (this.getRRule().isEmpty() && this.getRDate().isEmpty()) {
+		if (this.getRRule() == null && this.getRDate() == null) {
 			//if (AllDay.equals(1)) //{
 			//	values.put(Events.ALL_DAY, AllDay);
 			//} else {
@@ -359,16 +360,16 @@ public class CalendarEvent extends org.gege.caldavsyncadapter.Event {
 	}
 	
 	private int getStatus() {
-		int Result = Events.STATUS_TENTATIVE;
+		int Result = -1;
 		String Value = "";
 		Property property = calendarComponent.getProperty(Property.STATUS);
 		if (property != null) {
 			Value = property.getValue();
-			if (Value.equals(Status.VEVENT_CONFIRMED))
+			if (Value.equals(Status.VEVENT_CONFIRMED.getValue()))
 				Result = Events.STATUS_CONFIRMED;
-			else if (Value.equals(Status.VEVENT_CANCELLED))
+			else if (Value.equals(Status.VEVENT_CANCELLED.getValue()))
 				Result = Events.STATUS_CANCELED;
-			else if (Value.equals(Status.VEVENT_TENTATIVE))
+			else if (Value.equals(Status.VEVENT_TENTATIVE.getValue()))
 				Result = Events.STATUS_TENTATIVE;
 		}
 		
@@ -376,19 +377,21 @@ public class CalendarEvent extends org.gege.caldavsyncadapter.Event {
 	}
 	
 	private String getDescription() {
+		String Result = null;
 		Property property = calendarComponent.getProperty(Property.DESCRIPTION);
 		if (property != null)
-			return property.getValue();
-		else
-			return "";		
+			Result = property.getValue();
+		
+		return Result;
 	}
 	
 	private String getLocation() {
+		String Result = null;
 		Property property = calendarComponent.getProperty(Property.LOCATION);
 		if (property != null) 
-			return property.getValue();
-		else
-			return "";
+			Result = property.getValue();
+		
+		return Result;
 	}
 
 	private String getTitle() {
@@ -400,7 +403,7 @@ public class CalendarEvent extends org.gege.caldavsyncadapter.Event {
 	}
 	
 	private String getRRule() {
-		String Result = "";
+		String Result = null;
 		Property property = calendarComponent.getProperty(Property.RRULE);
 		if (property != null)
 			Result = property.getValue();
@@ -409,7 +412,7 @@ public class CalendarEvent extends org.gege.caldavsyncadapter.Event {
 	}
 
 	private String getExRule() {
-		String Result = "";
+		String Result = null;
 		Property property = calendarComponent.getProperty(Property.EXRULE);
 		if (property != null)
 			Result = property.getValue();
@@ -418,7 +421,7 @@ public class CalendarEvent extends org.gege.caldavsyncadapter.Event {
 	}
 	
 	private String getRDate() {
-		String Result = "";
+		String Result = null;
 		
 		java.util.ArrayList<String> ExDates = this.getRDates();
 		for (String Value: ExDates) {
@@ -445,10 +448,12 @@ public class CalendarEvent extends org.gege.caldavsyncadapter.Event {
 	}
 	
 	private String getExDate() {
-		String Result = "";
+		String Result = null;
 		
 		java.util.ArrayList<String> ExDates = this.getExDates();
 		for (String Value: ExDates) {
+			if (Result == null)
+				Result = "";
 			if (!Result.isEmpty())
 				Result += ",";
 			Result += Value;

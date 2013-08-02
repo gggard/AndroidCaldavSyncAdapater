@@ -430,8 +430,10 @@ public class AndroidEvent extends org.gege.caldavsyncadapter.Event {
 			if (this.ContentValues.containsKey(Events.DESCRIPTION)) {
 				String strDescription = this.ContentValues.getAsString(Events.DESCRIPTION);
 				if (strDescription != null) {
-					Description description = new Description(strDescription);
-					propEvent.add(description);
+					if (!strDescription.equals("")) {
+						Description description = new Description(strDescription);
+						propEvent.add(description);
+					}
 				}
 			}
 			
@@ -465,17 +467,17 @@ public class AndroidEvent extends org.gege.caldavsyncadapter.Event {
 			//STATUS
 			if (this.ContentValues.containsKey(Events.STATUS)) {
 				int intStatus = this.ContentValues.getAsInteger(Events.STATUS);
-				Status status = new Status();
-				if (intStatus == Events.STATUS_CANCELED) 
-					status.setValue(Status.VEVENT_CANCELLED.getValue());
-				else if (intStatus == Events.STATUS_CONFIRMED)
-					status.setValue(Status.VEVENT_CONFIRMED.getValue());
-				else if (intStatus == Events.STATUS_TENTATIVE)
-					status.setValue(Status.VEVENT_TENTATIVE.getValue());
-				else
-					status.setValue(Status.VEVENT_TENTATIVE.getValue());
-				
-				propEvent.add(status);
+				if (intStatus > -1) {
+					Status status = new Status();
+					if (intStatus == Events.STATUS_CANCELED) 
+						status.setValue(Status.VEVENT_CANCELLED.getValue());
+					else if (intStatus == Events.STATUS_CONFIRMED)
+						status.setValue(Status.VEVENT_CONFIRMED.getValue());
+					else if (intStatus == Events.STATUS_TENTATIVE)
+						status.setValue(Status.VEVENT_TENTATIVE.getValue());
+					
+					propEvent.add(status);
+				}
 			}
 
 			//UID
