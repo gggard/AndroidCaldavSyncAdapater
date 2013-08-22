@@ -25,6 +25,7 @@ import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.net.MalformedURLException;
 import java.net.URISyntaxException;
+import java.util.Locale;
 
 import javax.xml.parsers.ParserConfigurationException;
 
@@ -44,12 +45,15 @@ import android.app.Activity;
 import android.os.AsyncTask;
 import android.os.Build;
 import android.os.Bundle;
+import android.text.Editable;
 import android.text.TextUtils;
+import android.text.TextWatcher;
 import android.util.Log;
 import android.view.KeyEvent;
 import android.view.Menu;
 import android.view.View;
 import android.view.inputmethod.EditorInfo;
+import android.widget.CheckBox;
 import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -76,6 +80,7 @@ public class AuthenticatorActivity extends Activity {
 	// Values for email and password at the time of the login attempt.
 	private String mUser;
 	private String mPassword;
+	private String mTrustAll;
 
 	// UI references.
 	private EditText mUserView;
@@ -83,6 +88,7 @@ public class AuthenticatorActivity extends Activity {
 	private View mLoginFormView;
 	private View mLoginStatusView;
 	private TextView mLoginStatusMessageView;
+	private CheckBox mTrustCheckBox;
 
 	private AccountManager mAccountManager;
 
@@ -123,6 +129,24 @@ public class AuthenticatorActivity extends Activity {
 
 		
 		mURLView = (EditText) findViewById(R.id.url);
+		// if the URL start with "https" show the option to disable SSL host verification
+		mURLView.addTextChangedListener(new TextWatcher() {
+			@Override
+			public void onTextChanged(CharSequence s, int start, int before, int count) {
+				String url = ((EditText) findViewById(R.id.url)).getText().toString();
+				int visible = url.toLowerCase(Locale.getDefault()).startsWith("https") ? View.VISIBLE : View.INVISIBLE;
+				((CheckBox) findViewById(R.id.trustall)).setVisibility(visible);
+			}
+			
+			@Override
+			public void beforeTextChanged(CharSequence s, int start, int count,
+					int after) {				
+			}
+			
+			@Override
+			public void afterTextChanged(Editable s) {				
+			}
+		});
 		
 		mLoginFormView = findViewById(R.id.login_form);
 		mLoginStatusView = findViewById(R.id.login_status);
@@ -136,13 +160,14 @@ public class AuthenticatorActivity extends Activity {
 					}
 				});
 		
+		mTrustCheckBox = (CheckBox) findViewById(R.id.trustall);
+		
 		
 	}
 
 	@Override
 	public boolean onCreateOptionsMenu(Menu menu) {
 		super.onCreateOptionsMenu(menu);
-		getMenuInflater().inflate(R.menu.activity_authenticator, menu);
 		return true;
 	}
 
@@ -164,6 +189,7 @@ public class AuthenticatorActivity extends Activity {
 		mUser = mUserView.getText().toString();
 		mPassword = mPasswordView.getText().toString();
 		mURL = mURLView.getText().toString();
+		mTrustAll = (mTrustCheckBox.isChecked() ? "false" : "true");
 
 		boolean cancel = false;
 		View focusView = null;
@@ -265,7 +291,7 @@ public class AuthenticatorActivity extends Activity {
 			TestConnectionResult result = null;
 			
 			try {
-				CaldavFacade facade = new CaldavFacade(mUser, mPassword, mURL);
+				CaldavFacade facade = new CaldavFacade(mUser, mPassword, mURL, mTrustAll);
 				result = facade.testConnection();
 				Log.i(TAG, "testConnection status="+result);
 			} catch (HttpHostConnectException e) {
@@ -304,6 +330,7 @@ public class AuthenticatorActivity extends Activity {
 				final Account account = new Account(mUser, "org.gege.caldavsyncadapter.account");			
 				mAccountManager.addAccountExplicitly(account, mPassword, null);
 				mAccountManager.setUserData(account, Constants.USER_DATA_URL_KEY, mURL);
+				mAccountManager.setUserData(account, Constants.USER_DATA_TRUST_ALL_KEY, mTrustAll);
 			
 				return LoginResult.Success_Calendar;
 

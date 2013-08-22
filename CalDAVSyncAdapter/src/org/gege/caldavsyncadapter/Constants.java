@@ -24,5 +24,6 @@ package org.gege.caldavsyncadapter;
 public class Constants {
 
 	public static final String USER_DATA_URL_KEY = "USER_DATA_URL_KEY";
-
+	
+	public static final String USER_DATA_TRUST_ALL_KEY = "USER_DATA_TRUSTALL_KEY";
 }

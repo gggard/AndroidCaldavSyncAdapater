@@ -115,13 +115,14 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 			ContentProviderClient provider, SyncResult syncResult) {
 		
 		String url = mAccountManager.getUserData(account, Constants.USER_DATA_URL_KEY);
+		String trust = mAccountManager.getUserData(account, Constants.USER_DATA_TRUST_ALL_KEY);
 		Log.v(TAG, "onPerformSync() on "+account.name+" with URL "+url);
 
 		Iterable<Calendar> calendarList;
 		
 		try {
 			
-			CaldavFacade facade = new CaldavFacade(account.name, mAccountManager.getPassword(account), url);
+			CaldavFacade facade = new CaldavFacade(account.name, mAccountManager.getPassword(account), url, trust);
 			calendarList = facade.getCalendarList(getContext());
 			//String davProperties = facade.getLastDav();
 			

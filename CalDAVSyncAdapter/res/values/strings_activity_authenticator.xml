@@ -21,5 +21,6 @@
     <string name="error_unkown_error">Unknown error</string>
     <string name="success_calendar">Connection success (calendar)</string>
     <string name="success_collection">Connection success (multiple calendars)</string>
+    <string name="trustall">Check SSL Certificate</string>
 
 </resources>

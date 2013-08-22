@@ -71,6 +71,14 @@
 
                 <requestFocus />
             </EditText>
+            
+    		<CheckBox
+    		    android:id="@+id/trustall"
+    		    android:layout_width="wrap_content"
+    		    android:layout_height="wrap_content"
+    		    android:checked="true"
+    		    android:text="@string/trustall"
+    		    android:visibility="invisible" />
 
             <Button
                 android:id="@+id/sign_in_button"
