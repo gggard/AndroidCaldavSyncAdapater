@@ -714,7 +714,10 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 			Uri uri = provider.insert(asSyncAdapter(Events.CONTENT_URI, account.name, account.type), calendarEvent.ContentValues);
 			calendarEvent.setAndroidEventUri(uri);
 		
-			Log.d(TAG, "Creating calendar event for " + uri.toString());
+			if(uri == null)
+				Log.e(TAG, "Cannot create calendar event for null Uri!");
+			else
+				Log.d(TAG, "Creating calendar event for " + uri.toString());
 			
 			//check the attendees
 			java.util.ArrayList<ContentValues> AttendeeList = calendarEvent.getAttandees();
