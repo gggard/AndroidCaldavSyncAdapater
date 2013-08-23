@@ -718,32 +718,39 @@ public class CalendarEvent extends org.gege.caldavsyncadapter.Event {
 		CompatibilityHints.setHintEnabled(CompatibilityHints.KEY_OUTLOOK_COMPATIBILITY, true);
 
 		StringReader reader = new StringReader(this.stringIcs);
-		this.calendar = builder.build(reader);
-		
-		ComponentList components = null;
-		components = this.calendar.getComponents(Component.VEVENT);
-		if (components.size() == 0) {
-			components = this.calendar.getComponents(Component.VTODO);
-			if (components.size() == 0) {
-				throw new CaldavProtocolException("unknown events in ICS");
-			} else {
-				Log.e(TAG, "unsupported event TODO in ICS");
-				Error = true;
-			}
-		} else if (components.size() > 1) {
-			Log.e(TAG, "Several events in ICS -> only first will be processed");
+		try {
+			this.calendar = builder.build(reader);
+		} catch (ParserException ex) {
+			// ical4j fails with this: "Cannot set timezone for UTC properties"
+			// CREATED;TZID=America/New_York:20130129T140250
+			Error = true;
 		}
-
-		// get the TimeZone information
-		Component mCom = this.calendar.getComponent(Component.VTIMEZONE);
-		if (mCom != null)
-			mVTimeZone = (VTimeZone) this.calendar.getComponent(Component.VTIMEZONE);
-		if (mVTimeZone != null)
-			mTimeZone = new TimeZone(mVTimeZone);
-
-		if (!Error)
-			calendarComponent = (Component) components.get(0);
 		
+		if (!Error) {
+			ComponentList components = null;
+			components = this.calendar.getComponents(Component.VEVENT);
+			if (components.size() == 0) {
+				components = this.calendar.getComponents(Component.VTODO);
+				if (components.size() == 0) {
+					throw new CaldavProtocolException("unknown events in ICS");
+				} else {
+					Log.e(TAG, "unsupported event TODO in ICS");
+					Error = true;
+				}
+			} else if (components.size() > 1) {
+				Log.e(TAG, "Several events in ICS -> only first will be processed");
+			}
+	
+			// get the TimeZone information
+			Component mCom = this.calendar.getComponent(Component.VTIMEZONE);
+			if (mCom != null)
+				mVTimeZone = (VTimeZone) this.calendar.getComponent(Component.VTIMEZONE);
+			if (mVTimeZone != null)
+				mTimeZone = new TimeZone(mVTimeZone);
+	
+			if (!Error)
+				calendarComponent = (Component) components.get(0);
+		}
 			 
 		return !Error;
 	}
