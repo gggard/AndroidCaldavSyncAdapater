@@ -100,13 +100,13 @@ public class AndroidEvent extends org.gege.caldavsyncadapter.Event {
 
 	public String getETag() {
 		String Result = "";
-		if (this.ContentValues.containsKey(ceTAG))
-			Result = this.ContentValues.getAsString(ceTAG);
+		if (this.ContentValues.containsKey(ETAG))
+			Result = this.ContentValues.getAsString(ETAG);
 		return Result;
 	}
 
 	public void setETag(String eTag) {
-		this.ContentValues.put(ceTAG, eTag);
+		this.ContentValues.put(ETAG, eTag);
 	}
 	
 	public Uri getUri() {
@@ -133,7 +133,7 @@ public class AndroidEvent extends org.gege.caldavsyncadapter.Event {
 	 * @see AndroidEvent#ContentValues
 	 */
 	public boolean readContentValues(Cursor cur) {
-		this.setETag(cur.getString(cur.getColumnIndex(ceTAG)));
+		this.setETag(cur.getString(cur.getColumnIndex(ETAG)));
 
 		this.ContentValues.put(Events.EVENT_TIMEZONE, cur.getString(cur.getColumnIndex(Events.EVENT_TIMEZONE)));
 		this.ContentValues.put(Events.EVENT_END_TIMEZONE, cur.getString(cur.getColumnIndex(Events.EVENT_END_TIMEZONE)));
@@ -158,7 +158,7 @@ public class AndroidEvent extends org.gege.caldavsyncadapter.Event {
 		this.ContentValues.put(Events.EXRULE, cur.getString(cur.getColumnIndex(Events.EXRULE)));
 		this.ContentValues.put(Events.EXDATE, cur.getString(cur.getColumnIndex(Events.EXDATE)));		
 		this.ContentValues.put(Events.DIRTY, cur.getInt(cur.getColumnIndex(Events.DIRTY)));
-		this.ContentValues.put(cUID, cur.getString(cur.getColumnIndex(cUID)));
+		this.ContentValues.put(UID, cur.getString(cur.getColumnIndex(UID)));
 		
 		return true;
 	}
@@ -285,6 +285,7 @@ public class AndroidEvent extends org.gege.caldavsyncadapter.Event {
 	 * generates a new ics-file.
 	 * uses {@link AndroidEvent#ContentValues} as source.
 	 * this should only be used when a new event has been generated within android.
+	 * @param strUid the UID for this event. example: UID:e6be67c6-eff0-44f8-a1a0-6c2cb1029944-caldavsyncadapter
 	 * @return success of the function
 	 * @see CalendarEvent#fetchBody()
 	 */

@@ -578,6 +578,13 @@ public class CaldavFacade {
 				+ " body= " + body);
 	}
 	
+	/**
+	 * sends a update event request to the server 
+	 * @param uri the full URI of the event on server side. example: http://caldav.example.com/principal/user/calendar/e6be67c6-eff0-44f8-a1a0-6c2cb1029944-caldavsyncadapter.ics
+	 * @param data the full ical-data for the event
+	 * @param ETag the ETAG of this event is send within the "If-Match" Parameter to tell the server only to update this version
+	 * @return
+	 */
 	public boolean updateEvent(URI uri, String data, String ETag) {
 		boolean Result = false;
 		
@@ -601,6 +608,12 @@ public class CaldavFacade {
 		return Result;
 	}
 	
+	/**
+	 * sends a create event request to server
+	 * @param uri the full URI of the new event on server side. example: http://caldav.example.com/principal/user/calendar/e6be67c6-eff0-44f8-a1a0-6c2cb1029944-caldavsyncadapter.ics
+	 * @param data the full ical-data for the new event
+	 * @return success of this function
+	 */
 	public boolean createEvent(URI uri, String data) {
 		boolean Result = false;
 		
@@ -624,14 +637,28 @@ public class CaldavFacade {
 		return Result;
 	}
 	
+	/**
+	 * returns the ETAG send by the last server response.
+	 * @return the ETAG
+	 */
 	public String getLastETag() {
 		return lastETag;
 	}
 	
+	/**
+	 * returns the DAV-Options send by the last server response.
+	 * @return the DAV-Options
+	 */
 	public String getLastDav() {
 		return lastDav;
 	}
 	
+	/**
+	 * sends a delete event request to the server
+	 * @param calendarEventUri  the full URI of the event on server side. example: http://caldav.example.com/principal/user/calendar/e6be67c6-eff0-44f8-a1a0-6c2cb1029944-caldavsyncadapter.ics
+	 * @param ETag the ETAG of this event is send within the "If-Match" Parameter to tell the server only to delete this version
+	 * @return success of this function
+	 */
 	public boolean deleteEvent(URI calendarEventUri, String ETag) {
 		boolean Result = false;
 		

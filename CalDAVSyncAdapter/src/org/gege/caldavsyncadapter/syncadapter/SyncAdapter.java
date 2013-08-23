@@ -369,8 +369,8 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 					if (facade.createEvent(URI.create(SyncID), androidEvent.getIcsEvent().toString())) {
 						ContentValues values = new ContentValues();
 						values.put(Events._SYNC_ID, SyncID);
-						values.put(Event.ceTAG, facade.getLastETag());
-						values.put(Event.cUID, newGUID);
+						values.put(Event.ETAG, facade.getLastETag());
+						values.put(Event.UID, newGUID);
 						values.put(Events.DIRTY, 0);
 						
 						int rowCount = provider.update(asSyncAdapter(androidEvent.getUri(), account.name, account.type), values, null, null);
@@ -469,7 +469,7 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 	 * @throws RemoteException
 	 */
 	private int deleteUntaggedEvents(ContentProviderClient provider, Account account, Uri calendarUri) throws RemoteException {
-		String mSelectionClause = "(" + Event.cInternalTag +  "<> ?) AND (" + Events.CALENDAR_ID + " = ?)";
+		String mSelectionClause = "(" + Event.INTERNALTAG +  "<> ?) AND (" + Events.CALENDAR_ID + " = ?)";
 		String[] mSelectionArgs = {"1", Long.toString(ContentUris.parseId(calendarUri))};
 		
 		int CountDeleted = provider.delete(asSyncAdapter(Events.CONTENT_URI, account.name, account.type), mSelectionClause, mSelectionArgs);	
@@ -490,7 +490,7 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 	private boolean tagAndroidEvent(ContentProviderClient provider,Account account, AndroidEvent androidEvent) throws RemoteException {
 		
 		ContentValues values = new ContentValues();
-		values.put(Event.cInternalTag, 1);
+		values.put(Event.INTERNALTAG, 1);
 		
 		int RowCount = provider.update(asSyncAdapter(androidEvent.getUri(), account.name, account.type), values, null, null);
 		//Log.e(TAG,"Rows updated: " + RowCount.toString());
@@ -511,9 +511,9 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 	private int untagAndroidEvents(ContentProviderClient provider, Account account, Uri calendarUri) throws RemoteException {
 		
 		ContentValues values = new ContentValues();
-		values.put(Event.cInternalTag, 0);
+		values.put(Event.INTERNALTAG, 0);
 		
-		String mSelectionClause = "(" + Event.cInternalTag +  " = ?) AND (" + Events.CALENDAR_ID + " = ?)";
+		String mSelectionClause = "(" + Event.INTERNALTAG +  " = ?) AND (" + Events.CALENDAR_ID + " = ?)";
 		String[] mSelectionArgs = {"1", Long.toString(ContentUris.parseId(calendarUri))};
 		
 		int RowCount = provider.update(asSyncAdapter(Events.CONTENT_URI, account.name, account.type), values, mSelectionClause, mSelectionArgs);

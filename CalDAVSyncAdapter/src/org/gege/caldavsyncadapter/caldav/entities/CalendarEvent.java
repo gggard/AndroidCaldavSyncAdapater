@@ -156,7 +156,7 @@ public class CalendarEvent extends org.gege.caldavsyncadapter.Event {
 		this.ContentValues.put(Events.TITLE, this.getTitle());
 		//this.ContentValues.put(Events.CALENDAR_ID, ContentUris.parseId(calendarUri));
 		this.ContentValues.put(Events._SYNC_ID, this.getUri().toString());
-		this.ContentValues.put(ceTAG, this.getETag());
+		this.ContentValues.put(ETAG, this.getETag());
 		this.ContentValues.put(Events.DESCRIPTION, this.getDescription());
 		this.ContentValues.put(Events.EVENT_LOCATION, this.getLocation());
 		this.ContentValues.put(Events.ACCESS_LEVEL, this.getAccessLevel());
@@ -165,7 +165,7 @@ public class CalendarEvent extends org.gege.caldavsyncadapter.Event {
 		this.ContentValues.put(Events.RRULE, this.getRRule());
 		this.ContentValues.put(Events.EXRULE, this.getExRule());
 		this.ContentValues.put(Events.EXDATE, this.getExDate());
-		this.ContentValues.put(cUID, this.getUid());
+		this.ContentValues.put(UID, this.getUid());
 		
 		return true;
 	}
