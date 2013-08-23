@@ -425,6 +425,8 @@ public class CalendarEvent extends org.gege.caldavsyncadapter.Event {
 		
 		java.util.ArrayList<String> ExDates = this.getRDates();
 		for (String Value: ExDates) {
+			if (Result == null)
+				Result = "";
 			if (!Result.isEmpty())
 				Result += ",";
 			Result += Value;
@@ -664,7 +666,9 @@ public class CalendarEvent extends org.gege.caldavsyncadapter.Event {
 			Result = "P";
 			long Start = this.getStartTime();
 			long End   = this.getEndTime();
-			long Duration = (End - Start) / 1000; // get rid of the milliseconds, they cann't be described with RFC2445-Duration
+			long Duration = 0;
+			if (End != 0)
+				Duration = (End - Start) / 1000; // get rid of the milliseconds, they cann't be described with RFC2445-Duration
 			
 			int Days = (int) Math.ceil(Duration / 24 / 60 / 60);
 			int Hours = (int) Math.ceil((Duration - (Days * 24 * 60 * 60)) / 60 / 60);
