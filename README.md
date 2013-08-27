@@ -10,8 +10,8 @@ See wiki for more information and server compatibility list (https://github.com/
 Choose: Import -> Android -> Existing Android Code Into Workspace
 
 ### Using ant
-   android project --path .
-   ant debug
+    android project --path .
+    ant debug
 
 check `bin/CalDAVSyncAdapter-debug.apk`
 
