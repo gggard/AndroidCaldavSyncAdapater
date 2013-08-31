@@ -141,12 +141,16 @@ public class Calendar {
 	 * example: #FFCCAA 
 	 */
 	public void setCalendarColorAsString(String color) {
+		int maxlen = 6;
+		
 		this.strCalendarColor = color;
 		if (!color.equals("")) {
 			String strColor = color.replace("#", "");
-			long lngColor = Long.parseLong(strColor, 16);
-			//int intColor = Integer.parseInt(strColor, 16);
-			int intColor = (int) lngColor;
+			if (strColor.length() > maxlen)
+				strColor = strColor.substring(0, maxlen);
+			//long lngColor = Long.parseLong(strColor, 16);
+			int intColor = Integer.parseInt(strColor, 16);
+			//int intColor = (int) lngColor;
 			this.setContentValueAsInt(Calendars.CALENDAR_COLOR, intColor);
 		}
 	}
