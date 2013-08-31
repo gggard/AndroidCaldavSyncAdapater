@@ -181,14 +181,10 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 				}
 			}
 			
-			// check wheather a calendar is not synced -> delete it at android
-			/*for (Calendar androidCalendar : androidCalendarList) {
-				if (!androidCalendar.foundServerSide) {
-					androidCalendar.deleteAndroidCalendar();
-				}
-			}*/
+			// check weather a calendar is not synced -> delete it at android
 			androidCalList.deleteCalendarOnlyOnClientSide();
-        /*} catch (final AuthenticatorException e) {
+
+		/*} catch (final AuthenticatorException e) {
             syncResult.stats.numParseExceptions++;
             Log.e(TAG, "AuthenticatorException", e);*/
         /*} catch (final OperationCanceledException e) {
@@ -778,17 +774,10 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 		return Result;
 	}
 
-	//private Uri getOrCreateCalendarUri(Account account, ContentProviderClient provider, Calendar calendar, java.util.ArrayList<Calendar> androidCalendarList) throws RemoteException {
 	private Uri getOrCreateCalendarUri(Account account, ContentProviderClient provider, Calendar serverCalendar, CalendarList androidCalList) throws RemoteException {
 		Uri returnedCalendarUri = null;
 		boolean isCalendarExist = false;
 		
-/**		for (Calendar androidCalendar : androidCalendarList) {
-			if (androidCalendar.getURI().equals(calendar.getURI())) {
-				isCalendarExist = true;
-				androidCalendar.foundServerSide = true;
-			}
-		}*/
 		Calendar androidCalendar = androidCalList.getCalendarByURI(serverCalendar.getURI());
 		if (androidCalendar != null) {
 			isCalendarExist = true;
@@ -798,40 +787,10 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 
 		if (!isCalendarExist) {
 			returnedCalendarUri = androidCalList.createNewAndroidCalendar(serverCalendar);
-/*			final ContentValues contentValues = new ContentValues();
-			//contentValues.put(Calendars.NAME, calendar.getURI().toString());
-			contentValues.put(Calendar.URI, serverCalendar.getURI().toString());
-
-			contentValues.put(Calendars.VISIBLE, 1);
-			contentValues.put(Calendars.CALENDAR_DISPLAY_NAME, serverCalendar.getCalendarDisplayName());
-			contentValues.put(Calendars.OWNER_ACCOUNT, account.name);
-			contentValues.put(Calendars.ACCOUNT_NAME, account.name);
-			contentValues.put(Calendars.ACCOUNT_TYPE, account.type);
-			contentValues.put(Calendars.SYNC_EVENTS, 1);
-			contentValues.put(Calendars.CALENDAR_ACCESS_LEVEL, Calendars.CAL_ACCESS_OWNER);
-			
-			if (!serverCalendar.getCalendarColorAsString().equals("")) {
-				contentValues.put(Calendars.CALENDAR_COLOR, serverCalendar.getCalendarColor());
-			} else {
-				// find a color
-				int index = calendarCount(account, provider);
-				index = index % CalendarColors.colors.length;
-				contentValues.put(Calendars.CALENDAR_COLOR, CalendarColors.colors[index]);
-			}
-
-			returnedCalendarUri = provider.insert(asSyncAdapter(Calendars.CONTENT_URI, account.name, account.type), contentValues);
-
-			// it is possible that this calendar already exists but the provider failed to find it within isCalendarExist()
-			// the adapter would try to create a new calendar but the provider fails again to create a new calendar.
-			if (returnedCalendarUri != null) {
-				long newCalendarId = ContentUris.parseId(returnedCalendarUri);
-				Log.v(TAG, "New calendar created : URI=" + returnedCalendarUri + " id=" + newCalendarId);
-			}*/
 		} else {
-			returnedCalendarUri = getCalendarUri(account, provider, serverCalendar);
+			returnedCalendarUri = androidCalendar.getAndroidCalendarUri();
 			if (!serverCalendar.getCalendarColorAsString().equals(""))
 				serverCalendar.updateCalendarColor(returnedCalendarUri, serverCalendar);
-				//setCalendarColor(account, provider, returnedCalendarUri, calendar);
 		}
 		
 		return returnedCalendarUri;
@@ -890,37 +849,6 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 		curEvent.close();
 		
 		return androidEvent;
-	}
-	
-	private static Uri getCalendarUri(Account account, ContentProviderClient provider, Calendar calendar) throws RemoteException {
-		Uri Result = null;
-		Cursor cur = null;
-		
-		Uri uri = Calendars.CONTENT_URI;   
-		String selection = "(" +
-								"(" + Calendars.ACCOUNT_NAME + " = ?) AND " + 
-		                        "(" + Calendars.ACCOUNT_TYPE + " = ?) AND " + 
-//				                "(" + Calendars.NAME + " = ?) AND " +
-				                "(" + Calendar.URI + " = ?) AND " +
-		                        "(" + Calendars.OWNER_ACCOUNT + " = ?)" +
-		                    ")";
-		String[] selectionArgs = new String[] {	account.name, 
-												account.type,
-				 							   	calendar.getURI().toString(),
-				 							   	account.name}; 
-		// Submit the query and get a Cursor object back. 
-		cur = provider.query(uri, CALENDAR_PROJECTION, selection, selectionArgs, null);
-		
-		if (cur.getCount() == 0) {
-			Result = null;
-		} else {
-			cur.moveToNext();
-			Uri returnedUri = ContentUris.withAppendedId(uri, cur.getLong(cur.getColumnIndex(Calendars._ID)) );
-			Result = returnedUri;
-		}
-		cur.close();
-		
-		return Result;
 	}
 	
 	private static String getCalendarCTag(ContentProviderClient provider, Uri calendarUri) throws RemoteException {

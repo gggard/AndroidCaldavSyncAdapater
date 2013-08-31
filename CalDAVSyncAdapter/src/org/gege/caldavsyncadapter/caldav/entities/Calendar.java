@@ -48,11 +48,7 @@ public class Calendar {
 	 */
 	public static String URI = Calendars._SYNC_ID;
 	
-	//private URI calendarURI;
-	//private String cTag;
 	private String strCalendarColor = "";
-	//private String calendarName  = "";
-	//private int androidCalendarId = 0;
 
 	/**
 	 * the event transformed into ContentValues
@@ -69,7 +65,6 @@ public class Calendar {
 	 * example: http://<server>/calendarserver.php/calendars/<username>/<calendarname>
 	 */
 	public URI getURI() {
-		//return this.calendarURI;
 		String strUri = this.getContentValueAsString(Calendar.URI);
 		URI result = null;
 		try {
@@ -84,7 +79,6 @@ public class Calendar {
 	 * example: http://<server>/calendarserver.php/calendars/<username>/<calendarname>
 	 */
 	public void setURI(URI uri) {
-	//	this.calendarURI = uri;
 		this.setContentValueAsString(Calendar.URI, uri.toString());
 	}
 
@@ -125,7 +119,6 @@ public class Calendar {
 	 * example: 1143
 	 */
 	public void setCTag(String cTag) {
-		//this.cTag = cTag;
 		this.setContentValueAsString(Calendar.CTAG, cTag);
 	}
 	
@@ -133,7 +126,6 @@ public class Calendar {
 	 * example: 1143
 	 */
 	public String getcTag() {
-		//return cTag;
 		return this.getContentValueAsString(Calendar.CTAG);
 	}
 	
@@ -148,9 +140,7 @@ public class Calendar {
 			String strColor = color.replace("#", "");
 			if (strColor.length() > maxlen)
 				strColor = strColor.substring(0, maxlen);
-			//long lngColor = Long.parseLong(strColor, 16);
 			int intColor = Integer.parseInt(strColor, 16);
-			//int intColor = (int) lngColor;
 			this.setContentValueAsInt(Calendars.CALENDAR_COLOR, intColor);
 		}
 	}
@@ -182,7 +172,6 @@ public class Calendar {
 	 * 		but is:    http://caldav.example.com/calendarserver.php/calendars/<username>/<calendarname>/
 	 */
 	public String getCalendarName() {
-		//return calendarName;
 		return this.getContentValueAsString(Calendars.NAME);
 	}
 
@@ -192,7 +181,6 @@ public class Calendar {
 	 * 		but is:    http://caldav.example.com/calendarserver.php/calendars/<username>/<calendarname>/
 	 */
 	public void setCalendarName(String calendarName) {
-		//this.calendarName = calendarName;
 		this.setContentValueAsString(Calendars.NAME, calendarName);
 	}
 
@@ -200,7 +188,6 @@ public class Calendar {
 	 * example: 8
 	 */
 	public int getAndroidCalendarId() {
-		//return androidCalendarId;
 		return this.getContentValueAsInt(Calendars._ID);
 	}
 
@@ -208,7 +195,6 @@ public class Calendar {
 	 * example: 8
 	 */
 	public void setAndroidCalendarId(int androidCalendarId) {
-		//this.androidCalendarId = androidCalendarId;
 		this.setContentValueAsInt(Calendars._ID, androidCalendarId);
 	}
 
@@ -314,7 +300,6 @@ public class Calendar {
 	
 
 	public void updateCalendarCTag(Uri calendarUri, String cTag) throws RemoteException {
-		
 		ContentValues mUpdateValues = new ContentValues();
 		mUpdateValues.put(Calendar.CTAG, cTag);
 		
@@ -322,7 +307,6 @@ public class Calendar {
 	}
 
 	public void updateCalendarColor(Uri calendarUri, Calendar calendar) throws RemoteException {
-	
 		ContentValues mUpdateValues = new ContentValues();
 		mUpdateValues.put(Calendars.CALENDAR_COLOR, calendar.getCalendarColor());
 		
