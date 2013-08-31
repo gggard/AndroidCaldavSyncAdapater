@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2012-2013, Gerald Garcia, David Wiesner
+ * Copyright (c) 2012-2013, Gerald Garcia, David Wiesner, Timo Berger
  * 
  * This file is part of Andoid Caldav Sync Adapter Free.
  *
@@ -507,6 +507,7 @@ public class CaldavFacade {
 			throw new AuthenticationException();
 		case 404:
 			throw new FileNotFoundException();
+		case 412:
 		case 200:
 		case 201:
 		case 204:
@@ -595,6 +596,9 @@ public class CaldavFacade {
 			checkStatus(response);
 			if ((lastStatusCode == 200) || (lastStatusCode == 204)) {
 				Result = true;
+			} else if (lastStatusCode == 412) {
+				//Precondition failed
+				Result = false;
 			} else {
 				Log.w(TAG, "Unkown StatusCode during creation of an event");
 			}

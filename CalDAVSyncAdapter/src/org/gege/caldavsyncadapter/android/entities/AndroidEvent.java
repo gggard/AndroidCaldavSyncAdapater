@@ -26,6 +26,7 @@ import java.text.ParseException;
 import net.fortuna.ical4j.model.Calendar;
 import net.fortuna.ical4j.model.Component;
 import net.fortuna.ical4j.model.ComponentList;
+import net.fortuna.ical4j.model.Date;
 import net.fortuna.ical4j.model.DateTime;
 import net.fortuna.ical4j.model.Dur;
 import net.fortuna.ical4j.model.ParameterList;
@@ -332,15 +333,25 @@ public class AndroidEvent extends org.gege.caldavsyncadapter.Event {
 			// DTSTART
 			long lngStart = this.ContentValues.getAsLong(Events.DTSTART);
 			String strTZStart = this.ContentValues.getAsString(Events.EVENT_TIMEZONE);
+			boolean allDay = this.ContentValues.getAsBoolean(Events.ALL_DAY);
 			if (lngStart > 0) {
-				DateTime dateStart = new DateTime();
-				dateStart.setTime(lngStart);
 				DtStart dtStart = new DtStart();
-				dtStart.setDate(dateStart);
-				timezone = registry.getTimeZone(strTZStart);
-				dtStart.setTimeZone(timezone);
+				if (allDay) {
+					Date dateStart = new Date();
+					dateStart.setTime(lngStart);
+					dtStart.setDate(dateStart);
+				} else {
+					DateTime datetimeStart = new DateTime();
+					datetimeStart.setTime(lngStart);
+					dtStart.setDate(datetimeStart);
+
+					timezone = registry.getTimeZone(strTZStart);
+					dtStart.setTimeZone(timezone);
+					
+					// no timezone information for allDay events
+					mCalendar.getComponents().add(timezone.getVTimeZone());
+				}
 				propEvent.add(dtStart);
-				mCalendar.getComponents().add(timezone.getVTimeZone());
 			}
 			
 			// DTEND
@@ -349,13 +360,19 @@ public class AndroidEvent extends org.gege.caldavsyncadapter.Event {
 			if (strTZEnd == null)
 				strTZEnd = strTZStart;
 			if (lngEnd > 0) {
-				DateTime dateEnd = new DateTime();
-				dateEnd.setTime(lngEnd);
 				DtEnd dtEnd = new DtEnd();
-				dtEnd.setDate(dateEnd);
-				if (strTZEnd != null)
-					timezone = registry.getTimeZone(strTZEnd);
-				dtEnd.setTimeZone(timezone);
+				if (allDay) {
+					Date dateEnd = new Date();
+					dateEnd.setTime(lngEnd);
+					dtEnd.setDate(dateEnd);
+				} else {
+					DateTime datetimeEnd = new DateTime();
+					datetimeEnd.setTime(lngEnd);
+					dtEnd.setDate(datetimeEnd);
+					if (strTZEnd != null)
+						timezone = registry.getTimeZone(strTZEnd);
+					dtEnd.setTimeZone(timezone);
+				}
 				propEvent.add(dtEnd);
 			}
 			

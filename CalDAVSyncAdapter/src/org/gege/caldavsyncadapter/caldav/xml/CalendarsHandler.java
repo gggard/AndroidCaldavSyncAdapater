@@ -105,11 +105,11 @@ public class CalendarsHandler extends DefaultHandler {
 						}
 					}
 				} else if (DISPLAYNAME.equals(localName)) {
-					calendar.setDisplayName(stringBuilder.toString());
+					calendar.setCalendarDisplayName(stringBuilder.toString());
 				} else if (GETCTAG.equals(localName)) {
 					calendar.setCTag(stringBuilder.toString());
 				} else if (CALENDAR_COLOR.equals(localName)) {
-					calendar.setCalendarColor(stringBuilder.toString());
+					calendar.setCalendarColorAsString(stringBuilder.toString());
 				}
 			}
 			//stringBuilder.setLength(0);
@@ -124,6 +124,6 @@ public class CalendarsHandler extends DefaultHandler {
 	private boolean isValidCalendar(Calendar calendar) {
 		return calendar != null && calendar.getURI() != null
 				&& calendar.getcTag() != null
-				&& calendar.getDisplayName() != null;
+				&& calendar.getCalendarDisplayName() != null;
 	}
 }
