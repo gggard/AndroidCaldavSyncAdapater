@@ -377,7 +377,12 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 				if (SyncID == null) {
 					// new Android event
 					String newGUID = java.util.UUID.randomUUID().toString() + "-caldavsyncadapter";
-					SyncID = caldavCalendarUri.getPath() + newGUID + ".ics";
+					String calendarPath = caldavCalendarUri.getPath();
+					if (!calendarPath.endsWith("/"))
+						calendarPath += "/";
+
+					SyncID = calendarPath + newGUID + ".ics";
+					
 					//ev.ContentValues.put(Events._SYNC_ID, SyncID);
 					androidEvent.createIcs(newGUID);
 					
