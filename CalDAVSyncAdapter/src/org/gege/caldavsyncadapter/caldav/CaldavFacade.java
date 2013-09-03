@@ -137,11 +137,6 @@ public class CaldavFacade {
 		AuthScope as = new AuthScope(url.getHost(), -1);
 		((AbstractHttpClient) httpClient).getCredentialsProvider().setCredentials(as, upc);
 
-		BasicHttpContext localContext = new BasicHttpContext();
-
-		BasicScheme basicAuth = new BasicScheme();
-		localContext.setAttribute("preemptive-auth", basicAuth);
-
 		String proto = "http";
 		int port = 80;
 
@@ -406,6 +401,7 @@ public class CaldavFacade {
 
 		request = new HttpPropFind();
 		request.setURI(calendar.getURI());
+		request.setHeader("Host", targetHost.getHostName());
 		request.setHeader("Depth", "1");
 		request.setHeader("Content-Type", "application/xml;charset=\"UTF-8\"");
 		try {
@@ -521,6 +517,7 @@ public class CaldavFacade {
 	private HttpPropFind createPropFindRequest(URI uri, String data, int depth) {
 		HttpPropFind request = new HttpPropFind();
 		request.setURI(uri);
+		request.setHeader("Host", targetHost.getHostName());
 		request.setHeader("Depth", Integer.toString(depth));
 		request.setHeader("Content-Type", "application/xml;charset=\"UTF-8\"");
 		try {
@@ -534,6 +531,7 @@ public class CaldavFacade {
 	private HttpDelete createDeleteRequest(URI uri) {
 		HttpDelete request = new HttpDelete();
 		request.setURI(uri);
+		request.setHeader("Host", targetHost.getHostName());
 		request.setHeader("Content-Type", "application/xml;charset=\"UTF-8\"");
 		return request;
 	}
@@ -541,6 +539,7 @@ public class CaldavFacade {
 	private HttpPut createPutRequest(URI uri, String data, int depth) {
 		HttpPut request = new HttpPut();
 		request.setURI(uri);
+		request.setHeader("Host", targetHost.getHostName());
 		request.setHeader("Depth", Integer.toString(depth));
 		request.setHeader("Content-Type", "application/xml;charset=\"UTF-8\"");
 		try {
@@ -558,6 +557,7 @@ public class CaldavFacade {
 
 		request = new HttpGet();
 		request.setURI(calendarEvent.getUri());
+		request.setHeader("Host", targetHost.getHostName());
 		request.setHeader("Content-Type", "application/xml;charset=\"UTF-8\"");
 
 		HttpResponse response = httpClient.execute(targetHost, request);

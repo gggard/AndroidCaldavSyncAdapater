@@ -109,7 +109,7 @@ public class CalendarList {
 			contentValues.put(Calendars.CALENDAR_COLOR, serverCalendar.getCalendarColor());
 		} else {
 			// find a color
-			int index = calendarCount(mAccount, mProvider);
+			int index = mList.size();
 			index = index % CalendarColors.colors.length;
 			contentValues.put(Calendars.CALENDAR_COLOR, CalendarColors.colors[index]);
 		}
@@ -129,29 +129,6 @@ public class CalendarList {
 		
 		return Result;
 	}
-	
-	static int calendarCount(Account account, ContentProviderClient provider) {
-		int Result = 0;
-		Cursor cur = null;
-		
-		Uri uri = Calendars.CONTENT_URI;   
-		String selection = "";
-		String[] selectionArgs = new String[] {}; 
-		// Submit the query and get a Cursor object back. 
-		try {
-			cur = provider.query(uri, null, selection, selectionArgs, null);
-		} catch (RemoteException e) {
-			e.printStackTrace();
-		}
-		
-		if (cur != null) {
-			Result = cur.getCount();
-			cur.close();
-		}
-		
-		return Result;
-	}
-
 	
 	public boolean deleteCalendarOnlyOnClientSide() {
 		boolean Result = false;
