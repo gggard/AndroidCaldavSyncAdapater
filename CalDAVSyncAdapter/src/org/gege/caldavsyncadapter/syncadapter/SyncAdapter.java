@@ -53,6 +53,7 @@ import android.content.ContentValues;
 import android.content.Context;
 import android.content.SyncResult;
 import android.content.SyncStats;
+import android.content.pm.PackageManager.NameNotFoundException;
 import android.database.Cursor;
 import android.net.Uri;
 import android.os.Bundle;
@@ -67,6 +68,7 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 
 	private static final String TAG = "SyncAdapter";
 	private AccountManager mAccountManager;
+	private String mVersion = "";
 //	private Context mContext;
 	
 	
@@ -94,19 +96,20 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 	};
 */
 	
-	
 	// ignore same CTag
 	private static final boolean FORCE_SYNCHRONIZE = false;
 	// drop all calendar before synchro
 	private static final boolean DROP_CALENDAR_EVENTS = false;
 	
-	
-	
-	
 	public SyncAdapter(Context context, boolean autoInitialize) {
 		super(context, autoInitialize);
-
+		//android.os.Debug.waitForDebugger();
 		mAccountManager = AccountManager.get(context);
+		try {
+			mVersion = context.getPackageManager().getPackageInfo(context.getPackageName(), 0).versionName;
+		} catch (NameNotFoundException e) {
+			e.printStackTrace();
+		}
 //		mContext = context;
 	}
 
@@ -124,9 +127,9 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 		androidCalList.readCalendarFromClient();
 
 		try {
-			
 			CaldavFacade facade = new CaldavFacade(account.name, mAccountManager.getPassword(account), url);
-			calendarList = facade.getCalendarList(getContext());
+			facade.setVersion(mVersion);
+			calendarList = facade.getCalendarList(this.getContext());
 			//String davProperties = facade.getLastDav();
 			
 			for (Calendar serverCalendar : calendarList) {
@@ -147,7 +150,7 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 						(!getCalendarCTag(provider, calendarUri).equals(serverCalendar.getcTag()))) {
 							Log.d(TAG, "CTag has changed, something to synchronise");
 							
-							synchroniseEvents(facade,account, provider, calendarUri, serverCalendar, syncResult.stats);
+							synchroniseEvents(facade, account, provider, calendarUri, serverCalendar, syncResult.stats);
 							
 							Log.d(TAG, "Updating stored CTag");
 							serverCalendar.updateCalendarCTag(calendarUri, serverCalendar.getcTag());

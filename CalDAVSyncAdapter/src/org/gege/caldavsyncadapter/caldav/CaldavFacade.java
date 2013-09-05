@@ -42,17 +42,23 @@ import javax.xml.parsers.ParserConfigurationException;
 import javax.xml.parsers.SAXParser;
 import javax.xml.parsers.SAXParserFactory;
 
+import org.apache.http.HttpException;
 import org.apache.http.HttpHost;
+import org.apache.http.HttpRequest;
+import org.apache.http.HttpRequestInterceptor;
 import org.apache.http.HttpResponse;
 import org.apache.http.HttpVersion;
 import org.apache.http.auth.AuthScope;
+import org.apache.http.auth.AuthState;
 import org.apache.http.auth.AuthenticationException;
 import org.apache.http.auth.UsernamePasswordCredentials;
 import org.apache.http.client.ClientProtocolException;
+import org.apache.http.client.CredentialsProvider;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.methods.HttpDelete;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpPut;
+import org.apache.http.client.protocol.ClientContext;
 import org.apache.http.conn.HttpHostConnectException;
 import org.apache.http.conn.params.ConnManagerPNames;
 import org.apache.http.conn.params.ConnPerRouteBean;
@@ -61,14 +67,15 @@ import org.apache.http.conn.scheme.Scheme;
 import org.apache.http.conn.scheme.SchemeRegistry;
 import org.apache.http.conn.ssl.SSLSocketFactory;
 import org.apache.http.entity.StringEntity;
-import org.apache.http.impl.auth.BasicScheme;
 import org.apache.http.impl.client.AbstractHttpClient;
 import org.apache.http.impl.client.DefaultHttpClient;
 import org.apache.http.impl.conn.tsccm.ThreadSafeClientConnManager;
 import org.apache.http.params.BasicHttpParams;
+import org.apache.http.params.CoreProtocolPNames;
 import org.apache.http.params.HttpParams;
 import org.apache.http.params.HttpProtocolParams;
 import org.apache.http.protocol.BasicHttpContext;
+import org.apache.http.protocol.HttpContext;
 import org.gege.caldavsyncadapter.BuildConfig;
 import org.gege.caldavsyncadapter.caldav.entities.Calendar;
 import org.gege.caldavsyncadapter.caldav.entities.CalendarEvent;
@@ -92,9 +99,14 @@ import android.util.Log;
 public class CaldavFacade {
 
 	private static final String TAG = "CaldavFacade";
+	private String USER_AGENT = "CalDAV Sync Adapter (Android) https://github.com/gggard/AndroidCaldavSyncAdapater";
+	private String VERSION = ""; 
 
 	private static HttpClient httpClient;
-
+	private HttpContext mContext = null;
+	private AuthState mLastAuthState = null;
+	private AuthScope mLastAuthScope = null;
+	
 	private boolean trustAll = true;
 
 	private URL url;
@@ -107,7 +119,7 @@ public class CaldavFacade {
 
 	private String mstrcHeaderIfMatch = "If-Match";
 	private String mstrcHeaderIfNoneMatch = "If-None-Match";
-
+	
 	protected HttpClient getHttpClient() {
 
 		HttpParams params = new BasicHttpParams();
@@ -116,14 +128,11 @@ public class CaldavFacade {
 		params.setParameter(HttpProtocolParams.USE_EXPECT_CONTINUE, false);
 		HttpProtocolParams.setVersion(params, HttpVersion.HTTP_1_1);
 
-		// ClientConnectionManager cm = new ThreadSafeClientConnManager(params,
-		// schemeRegistry);
-
 		SchemeRegistry registry = new SchemeRegistry();
 		registry.register(new Scheme("http", new PlainSocketFactory(), 80));
 		registry.register(new Scheme("https", (trustAll ? EasySSLSocketFactory.getSocketFactory() : SSLSocketFactory.getSocketFactory()), 443));
 		DefaultHttpClient client = new DefaultHttpClient(new ThreadSafeClientConnManager(params, registry), params);
-
+		
 		return client;
 	}
 
@@ -131,11 +140,18 @@ public class CaldavFacade {
 		url = new URL(mURL);
 
 		httpClient = getHttpClient();
-
 		UsernamePasswordCredentials upc = new UsernamePasswordCredentials(mUser, mPassword);
 
-		AuthScope as = new AuthScope(url.getHost(), -1);
+		AuthScope as = null;
+		as = new AuthScope(url.getHost(), -1);
 		((AbstractHttpClient) httpClient).getCredentialsProvider().setCredentials(as, upc);
+		
+		mContext = new BasicHttpContext();
+		CredentialsProvider credProvider = ((AbstractHttpClient) httpClient).getCredentialsProvider();
+		mContext.setAttribute(ClientContext.CREDS_PROVIDER, credProvider);
+				
+		//http://dlinsin.blogspot.de/2009/08/http-basic-authentication-with-android.html
+		((AbstractHttpClient) httpClient).addRequestInterceptor(preemptiveAuth, 0);
 
 		String proto = "http";
 		int port = 80;
@@ -157,6 +173,38 @@ public class CaldavFacade {
 		}
 		targetHost = new HttpHost(url.getHost(), port, proto);
 	}
+	
+	//http://dlinsin.blogspot.de/2009/08/http-basic-authentication-with-android.html
+	HttpRequestInterceptor preemptiveAuth = new HttpRequestInterceptor() {
+		@Override
+	    public void process(final HttpRequest request, final HttpContext context) throws HttpException, IOException {
+	        AuthState authState = (AuthState) context.getAttribute(ClientContext.TARGET_AUTH_STATE);
+
+	        if (authState.getAuthScheme() == null) {
+	        	if (mLastAuthState != null) {
+	        		Log.d(TAG, "LastAuthState: restored with user " + mLastAuthState.getCredentials().getUserPrincipal().getName());
+	        		authState.setAuthScheme(mLastAuthState.getAuthScheme());
+	        		authState.setCredentials(mLastAuthState.getCredentials());
+	        	} else {
+	        		Log.d(TAG, "LastAuthState: nothing to do");
+	        	}
+	        	if (mLastAuthScope != null) {
+	        		authState.setAuthScope(mLastAuthScope);
+	        		Log.d(TAG, "LastAuthScope: restored");
+	        	} else {
+	        		Log.d(TAG, "LastAuthScope: nothing to do");
+	        	}
+	        } else {
+	        	//AuthState and AuthScope have to be saved separate because of the AuthScope within AuthState gets lost, so we save it in a separate var.
+	        	mLastAuthState = authState;
+	        	Log.d(TAG, "LastAuthState: new with user " + mLastAuthState.getCredentials().getUserPrincipal().getName());
+	        	if (authState.getAuthScope() != null) {
+	        		mLastAuthScope = authState.getAuthScope();
+	        		Log.d(TAG, "LastAuthScope: new");
+	        	}
+	        }
+	    }
+	};
 
 	public enum TestConnectionResult {
 		WRONG_CREDENTIAL, WRONG_URL, WRONG_SERVER_STATUS, WRONG_ANSWER, SUCCESS
@@ -266,7 +314,7 @@ public class CaldavFacade {
 		URI uri = this.url.toURI();
 		HttpPropFind request = createPropFindRequest(uri,
 				PROPFIND_USER_PRINCIPAL, 0);
-		HttpResponse response = httpClient.execute(targetHost, request);
+		HttpResponse response = httpClient.execute(targetHost, request, mContext);
 		checkStatus(response);
 		ServerInfoHandler serverInfoHandler = new ServerInfoHandler();
 		parseXML(response, serverInfoHandler);
@@ -301,7 +349,7 @@ public class CaldavFacade {
 			CaldavProtocolException {
 		HttpPropFind request = createPropFindRequest(userPrincipal,
 				PROPFIND_CALENDAR_HOME_SET, 0);
-		HttpResponse response = httpClient.execute(targetHost, request);
+		HttpResponse response = httpClient.execute(targetHost, request, mContext);
 		checkStatus(response);
 		CalendarHomeHandler calendarHomeHandler = new CalendarHomeHandler(
 				userPrincipal);
@@ -325,13 +373,13 @@ public class CaldavFacade {
 			//<ic:calendar-order />"
 			+ "<cs:getctag /></d:prop></d:propfind>";
 
+	
 	private List<Calendar> getCalendarsFromSet(URI calendarSet)
 			throws ClientProtocolException, IOException,
 			CaldavProtocolException, AuthenticationException,
 			FileNotFoundException {
-		HttpPropFind request = createPropFindRequest(calendarSet,
-				PROPFIND_CALENDER_LIST, 1);
-		HttpResponse response = httpClient.execute(targetHost, request);
+		HttpPropFind request = createPropFindRequest(calendarSet, PROPFIND_CALENDER_LIST, 1);
+		HttpResponse response = httpClient.execute(targetHost, request, mContext);
 		checkStatus(response);
 		CalendarsHandler calendarsHandler = new CalendarsHandler(calendarSet);
 		parseXML(response, calendarsHandler);
@@ -343,7 +391,7 @@ public class CaldavFacade {
 		}
 		return result;
 	}
-
+	
 	/**
 	 * Discover CalDAV Calendars Mentioned in
 	 * http://tools.ietf.org/html/draft-daboo-srv-caldav-10#section-6 and
@@ -404,6 +452,7 @@ public class CaldavFacade {
 		request.setHeader("Host", targetHost.getHostName());
 		request.setHeader("Depth", "1");
 		request.setHeader("Content-Type", "application/xml;charset=\"UTF-8\"");
+		
 		try {
 			request.setEntity(new StringEntity(requestBody, "UTF-8"));
 		} catch (UnsupportedEncodingException e) {
@@ -412,7 +461,7 @@ public class CaldavFacade {
 		
 		Log.d(TAG, "Getting eTag by PROPFIND at " + request.getURI());
 
-		HttpResponse response = httpClient.execute(targetHost, request);
+		HttpResponse response = httpClient.execute(targetHost, request, mContext);
 
 		BufferedReader reader = new BufferedReader(new InputStreamReader(
 				response.getEntity().getContent(), "UTF-8"));
@@ -516,6 +565,7 @@ public class CaldavFacade {
 
 	private HttpPropFind createPropFindRequest(URI uri, String data, int depth) {
 		HttpPropFind request = new HttpPropFind();
+
 		request.setURI(uri);
 		request.setHeader("Host", targetHost.getHostName());
 		request.setHeader("Depth", Integer.toString(depth));
@@ -525,6 +575,7 @@ public class CaldavFacade {
 		} catch (UnsupportedEncodingException e) {
 			throw new AssertionError("UTF-8 is unknown");
 		}
+		request.setHeader("","");
 		return request;
 	}
 	
@@ -592,7 +643,7 @@ public class CaldavFacade {
 		try {
 			HttpPut request = createPutRequest(uri, data, 1);
 			request.addHeader(mstrcHeaderIfMatch, ETag);
-			HttpResponse response = httpClient.execute(targetHost, request);
+			HttpResponse response = httpClient.execute(targetHost, request, mContext);
 			checkStatus(response);
 			if ((lastStatusCode == 200) || (lastStatusCode == 204)) {
 				Result = true;
@@ -624,7 +675,7 @@ public class CaldavFacade {
 		try {
 			HttpPut request = createPutRequest(uri, data, 1);
 			request.addHeader(mstrcHeaderIfNoneMatch, "*");
-			HttpResponse response = httpClient.execute(targetHost, request);
+			HttpResponse response = httpClient.execute(targetHost, request, mContext);
 			checkStatus(response);
 			if (lastStatusCode == 201) {
 				Result = true;
@@ -669,7 +720,7 @@ public class CaldavFacade {
 		try {
 			HttpDelete request = createDeleteRequest(calendarEventUri);
 			request.addHeader(mstrcHeaderIfMatch, ETag);
-			HttpResponse response = httpClient.execute(targetHost, request);
+			HttpResponse response = httpClient.execute(targetHost, request, mContext);
 			checkStatus(response);
 			if (lastStatusCode == 204) {
 				Result = true;
@@ -685,5 +736,10 @@ public class CaldavFacade {
 		}
 		
 		return Result;
+	}
+
+	public void setVersion(String version) {
+		VERSION = version;
+		((AbstractHttpClient) httpClient).getParams().setParameter(CoreProtocolPNames.USER_AGENT, this.USER_AGENT + " Version:" + VERSION);
 	}
 }
