@@ -297,18 +297,31 @@ public class Calendar {
 		
 		return Result;
 	}
-	
 
-	public void updateCalendarCTag(Uri calendarUri, String cTag) throws RemoteException {
+	/**
+	 * updates the android calendar
+	 * @param calendarUri the uri of the androidCalendar
+	 * @param target must be from android.provider.CalendarContract.Calendars
+	 * @param value the new value for the target
+	 * @throws RemoteException
+	 */
+	public void updateCalendar(Uri calendarUri, String target, int value) throws RemoteException {
 		ContentValues mUpdateValues = new ContentValues();
-		mUpdateValues.put(Calendar.CTAG, cTag);
+		mUpdateValues.put(target, value);
 		
 		mProvider.update(asSyncAdapter(calendarUri, mAccount.name, mAccount.type), mUpdateValues, null, null);
 	}
 
-	public void updateCalendarColor(Uri calendarUri, Calendar calendar) throws RemoteException {
+	/**
+	 * updates the android calendar
+	 * @param calendarUri the uri of the androidCalendar
+	 * @param target must be from android.provider.CalendarContract.Calendars
+	 * @param value the new value for the target
+	 * @throws RemoteException
+	 */
+	public void updateCalendar(Uri calendarUri, String target, String value) throws RemoteException {
 		ContentValues mUpdateValues = new ContentValues();
-		mUpdateValues.put(Calendars.CALENDAR_COLOR, calendar.getCalendarColor());
+		mUpdateValues.put(target, value);
 		
 		mProvider.update(asSyncAdapter(calendarUri, mAccount.name, mAccount.type), mUpdateValues, null, null);
 	}

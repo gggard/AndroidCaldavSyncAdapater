@@ -153,7 +153,8 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 							synchroniseEvents(facade, account, provider, calendarUri, serverCalendar, syncResult.stats);
 							
 							Log.d(TAG, "Updating stored CTag");
-							serverCalendar.updateCalendarCTag(calendarUri, serverCalendar.getcTag());
+							//serverCalendar.updateCalendarCTag(calendarUri, serverCalendar.getcTag());
+							serverCalendar.updateCalendar(calendarUri, Calendar.CTAG, serverCalendar.getcTag());
 							//setCalendarCTag(account, provider, calendarUri, calendar.getcTag());
 						
 					} else {
@@ -794,7 +795,7 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 	}
 
 	private Uri getOrCreateCalendarUri(Account account, ContentProviderClient provider, Calendar serverCalendar, CalendarList androidCalList) throws RemoteException {
-		Uri returnedCalendarUri = null;
+		Uri androidCalendarUri = null;
 		boolean isCalendarExist = false;
 		
 		Calendar androidCalendar = androidCalList.getCalendarByURI(serverCalendar.getURI());
@@ -805,14 +806,23 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 		
 
 		if (!isCalendarExist) {
-			returnedCalendarUri = androidCalList.createNewAndroidCalendar(serverCalendar);
+			androidCalendarUri = androidCalList.createNewAndroidCalendar(serverCalendar);
 		} else {
-			returnedCalendarUri = androidCalendar.getAndroidCalendarUri();
-			if (!serverCalendar.getCalendarColorAsString().equals(""))
-				serverCalendar.updateCalendarColor(returnedCalendarUri, serverCalendar);
+			androidCalendarUri = androidCalendar.getAndroidCalendarUri();
+			if (!serverCalendar.getCalendarColorAsString().equals("")) {
+				//serverCalendar.updateCalendarColor(returnedCalendarUri, serverCalendar);
+				serverCalendar.updateCalendar(androidCalendarUri, Calendars.CALENDAR_COLOR, serverCalendar.getCalendarColor());
+			}
+			if ((serverCalendar.ContentValues.containsKey(Calendars.CALENDAR_DISPLAY_NAME)) && 
+				(androidCalendar.ContentValues.containsKey(Calendars.CALENDAR_DISPLAY_NAME))) {
+				String serverDisplayName = serverCalendar.ContentValues.getAsString(Calendars.CALENDAR_DISPLAY_NAME);
+				String clientDisplayName = androidCalendar.ContentValues.getAsString(Calendars.CALENDAR_DISPLAY_NAME);
+				if (!serverDisplayName.equals(clientDisplayName))
+					serverCalendar.updateCalendar(androidCalendarUri, Calendars.CALENDAR_DISPLAY_NAME, serverDisplayName);
+			}
 		}
 		
-		return returnedCalendarUri;
+		return androidCalendarUri;
 	}
 	
 	/**
