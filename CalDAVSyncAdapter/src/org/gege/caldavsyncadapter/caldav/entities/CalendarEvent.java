@@ -166,10 +166,10 @@ public class CalendarEvent extends org.gege.caldavsyncadapter.Event {
 		this.ContentValues.put(Events.EXRULE, this.getExRule());
 		this.ContentValues.put(Events.EXDATE, this.getExDate());
 		this.ContentValues.put(UID, this.getUid());
+		this.ContentValues.put(RAWDATA, this.stringIcs);
 		
 		return true;
 	}
-	
 
 	/**
 	 * receives a single event and parses its content

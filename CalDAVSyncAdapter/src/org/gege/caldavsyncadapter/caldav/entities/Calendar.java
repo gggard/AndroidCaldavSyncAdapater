@@ -243,7 +243,7 @@ public class Calendar {
 		}
 		this.setURI(uri);
 		
-		this.Debug();
+		//this.Debug();
 	}
 	
 	public void Debug() {

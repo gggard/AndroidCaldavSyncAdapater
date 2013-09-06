@@ -160,6 +160,7 @@ public class AndroidEvent extends org.gege.caldavsyncadapter.Event {
 		this.ContentValues.put(Events.EXDATE, cur.getString(cur.getColumnIndex(Events.EXDATE)));		
 		this.ContentValues.put(Events.DIRTY, cur.getInt(cur.getColumnIndex(Events.DIRTY)));
 		this.ContentValues.put(UID, cur.getString(cur.getColumnIndex(UID)));
+		this.ContentValues.put(RAWDATA, cur.getString(cur.getColumnIndex(RAWDATA)));
 		
 		return true;
 	}
@@ -294,7 +295,7 @@ public class AndroidEvent extends org.gege.caldavsyncadapter.Event {
 		boolean Result = false;
 		TimeZone timezone = null;
 		TimeZoneRegistry registry = TimeZoneRegistryFactory.getInstance().createRegistry();
-
+//TODO: do not simply create the ics-file new. take into account the RAWDATA if available
 		/* 
 		 * dtstart=1365598800000
 		 * dtend=1365602400000
@@ -330,6 +331,18 @@ public class AndroidEvent extends org.gege.caldavsyncadapter.Event {
 			mCalendar.getComponents().add(event);
 			PropertyList propEvent = event.getProperties();
 
+			// DTSTAMP -> is created by new VEvent() automatical
+			//na 
+			
+			// CREATED
+			//na
+			
+			// LAST-MODIFIED
+			//na
+			
+			// SEQUENCE
+			//na
+			
 			// DTSTART
 			long lngStart = this.ContentValues.getAsLong(Events.DTSTART);
 			String strTZStart = this.ContentValues.getAsString(Events.EVENT_TIMEZONE);

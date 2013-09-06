@@ -103,7 +103,7 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 	
 	public SyncAdapter(Context context, boolean autoInitialize) {
 		super(context, autoInitialize);
-		//android.os.Debug.waitForDebugger();
+		android.os.Debug.waitForDebugger();
 		mAccountManager = AccountManager.get(context);
 		try {
 			mVersion = context.getPackageManager().getPackageInfo(context.getPackageName(), 0).versionName;
@@ -390,11 +390,15 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 					androidEvent.createIcs(newGUID);
 					
 					if (facade.createEvent(URI.create(SyncID), androidEvent.getIcsEvent().toString())) {
+						//bugfix for google calendar
+						if (SyncID.contains("@"))
+							SyncID = SyncID.replace("@", "%40");
 						ContentValues values = new ContentValues();
 						values.put(Events._SYNC_ID, SyncID);
 						values.put(Event.ETAG, facade.getLastETag());
 						values.put(Event.UID, newGUID);
 						values.put(Events.DIRTY, 0);
+						values.put(Event.RAWDATA, androidEvent.getIcsEvent().toString());
 						
 						int rowCount = provider.update(asSyncAdapter(androidEvent.getUri(), account.name, account.type), values, null, null);
 						if (rowCount == 1)
@@ -414,9 +418,10 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 					}
 					//rowDirty += 1;
 				} else {
-					//androidEvent.createIcs(androidEvent.ContentValues());
+					//update the android event to the server
 					String uid = androidEvent.getUID();
 					if ((uid == null) || (uid.equals(""))) {
+						//this is needed because in the past, the UID was not stored in the android event
 						CalendarEvent calendarEvent = new CalendarEvent();
 						URI syncURI = new URI(SyncID);
 						calendarEvent.setUri(syncURI);
@@ -432,6 +437,7 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 							selection = "(" + Events._ID + "= ?)";
 							selectionArgs = new String[] {EventID.toString()};
 							androidEvent.ContentValues.put(Events.DIRTY, 0);
+							androidEvent.ContentValues.put(Event.RAWDATA, androidEvent.getIcsEvent().toString());
 							int RowCount = provider.update(asSyncAdapter(androidEvent.getUri(), account.name, account.type), androidEvent.ContentValues, null, null);
 			
 							if (RowCount == 1)
@@ -574,6 +580,11 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 			Log.d(TAG, "AndroidEvent is dirty: " + androidEvent.ContentValues.getAsString(Events.DIRTY));
 			
 			if (this.checkEventValuesChanged(androidEvent.ContentValues, calendarEvent.ContentValues)) {
+				// just set the raw data from server event into android event
+				if (androidEvent.ContentValues.containsKey(Event.RAWDATA))
+					androidEvent.ContentValues.remove(Event.RAWDATA);
+				androidEvent.ContentValues.put(Event.RAWDATA, calendarEvent.ContentValues.getAsString(Event.RAWDATA));
+				
 				//update the attendees and reminders
 				this.updateAndroidAttendees(provider, calendarEvent);
 				this.updateAndroidReminder(provider, calendarEvent);

@@ -39,7 +39,13 @@ abstract public class Event {
 	public static String INTERNALTAG = Events.SYNC_DATA2;
 
 	/**
-	 * for a proper sync the raw ics-file should be stored here 
+	 * store the whole VEVENT in here
+	 * missing TAGs they might be missing for google update
+	 * 
+	 * CREATED:20130906T102857Z
+	 * DTSTAMP:20130906T102857Z
+	 * LAST-MODIFIED:20130906T102857Z
+	 * SEQUENCE:0
 	 */
 	public static String RAWDATA = Events.SYNC_DATA3;
 

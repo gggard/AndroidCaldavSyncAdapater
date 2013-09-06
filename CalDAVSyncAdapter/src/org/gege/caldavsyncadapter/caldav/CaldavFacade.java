@@ -552,6 +552,7 @@ public class CaldavFacade {
 			throw new AuthenticationException();
 		case 404:
 			throw new FileNotFoundException();
+		case 409: //Conflict
 		case 412:
 		case 200:
 		case 201:
@@ -575,7 +576,6 @@ public class CaldavFacade {
 		} catch (UnsupportedEncodingException e) {
 			throw new AssertionError("UTF-8 is unknown");
 		}
-		request.setHeader("","");
 		return request;
 	}
 	
@@ -591,8 +591,9 @@ public class CaldavFacade {
 		HttpPut request = new HttpPut();
 		request.setURI(uri);
 		request.setHeader("Host", targetHost.getHostName());
-		request.setHeader("Depth", Integer.toString(depth));
-		request.setHeader("Content-Type", "application/xml;charset=\"UTF-8\"");
+		//request.setHeader("Depth", Integer.toString(depth));
+		//request.setHeader("Content-Type", "application/xml;charset=\"UTF-8\"");
+		request.setHeader("Content-Type", "text/calendar; charset=UTF-8");
 		try {
 			//request.setEntity(new StringEntity(data, "UTF-8"));
 			request.setEntity(new StringEntity(data));
@@ -649,6 +650,9 @@ public class CaldavFacade {
 				Result = true;
 			} else if (lastStatusCode == 412) {
 				//Precondition failed
+				Result = false;
+			} else if (lastStatusCode == 409) {
+				//Conflict
 				Result = false;
 			} else {
 				Log.w(TAG, "Unkown StatusCode during creation of an event");
@@ -730,7 +734,12 @@ public class CaldavFacade {
 		} catch (ClientProtocolException e) {
 			e.printStackTrace();
 		} catch (IOException e) {
-			e.printStackTrace();
+			if (lastStatusCode == 404) {
+				//the event has already been deleted on server side. no action needed
+				Result = true;
+			} else {
+				e.printStackTrace();
+			}
 		} catch (AuthenticationException e) {
 			e.printStackTrace();
 		}
