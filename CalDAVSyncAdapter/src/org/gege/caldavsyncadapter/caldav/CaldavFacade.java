@@ -78,7 +78,9 @@ import org.apache.http.protocol.BasicHttpContext;
 import org.apache.http.protocol.HttpContext;
 import org.gege.caldavsyncadapter.BuildConfig;
 import org.gege.caldavsyncadapter.caldav.entities.Calendar;
+import org.gege.caldavsyncadapter.caldav.entities.Calendar.CalendarSource;
 import org.gege.caldavsyncadapter.caldav.entities.CalendarEvent;
+import org.gege.caldavsyncadapter.caldav.entities.CalendarList;
 import org.gege.caldavsyncadapter.caldav.http.HttpPropFind;
 import org.gege.caldavsyncadapter.caldav.xml.CalendarHomeHandler;
 import org.gege.caldavsyncadapter.caldav.xml.CalendarsHandler;
@@ -93,6 +95,8 @@ import org.xml.sax.InputSource;
 import org.xml.sax.SAXException;
 import org.xml.sax.XMLReader;
 
+import android.accounts.Account;
+import android.content.ContentProviderClient;
 import android.content.Context;
 import android.util.Log;
 
@@ -119,6 +123,9 @@ public class CaldavFacade {
 
 	private String mstrcHeaderIfMatch = "If-Match";
 	private String mstrcHeaderIfNoneMatch = "If-None-Match";
+	
+	private Account mAccount = null;
+	private ContentProviderClient mProvider;
 	
 	protected HttpClient getHttpClient() {
 
@@ -414,22 +421,31 @@ public class CaldavFacade {
 	 * @throws CaldavProtocolException
 	 *             caldav protocol error
 	 */
-	public Iterable<Calendar> getCalendarList(Context context) throws ClientProtocolException,
+	//public Iterable<Calendar> getCalendarList(Context context) throws ClientProtocolException,
+	public CalendarList getCalendarList(Context context) throws ClientProtocolException,
 			IOException, URISyntaxException, ParserConfigurationException,
 			CaldavProtocolException {
 		try {
+			CalendarList Result = new CalendarList(this.mAccount, this.mProvider, CalendarSource.CalDAV);
 			List<Calendar> calendars = new ArrayList<Calendar>();
+			
 			calendars = forceGetCalendarsFromUri(context, this.url.toURI());
-			if (calendars.size() != 0) {
-				return calendars;
+			
+			if (calendars.size() == 0) {
+				// no calendars found, try the home-set
+				URI userPrincipal = getUserPrincipal();
+				List<URI> calendarSets = getCalendarHomes(userPrincipal);
+				for (URI calendarSet : calendarSets) {
+					List<Calendar> calendarSetCalendars = getCalendarsFromSet(calendarSet);
+					calendars.addAll(calendarSetCalendars);
+				}
 			}
-			URI userPrincipal = getUserPrincipal();
-			List<URI> calendarSets = getCalendarHomes(userPrincipal);
-			for (URI calendarSet : calendarSets) {
-				List<Calendar> calendarSetCalendars = getCalendarsFromSet(calendarSet);
-				calendars.addAll(calendarSetCalendars);
+			for (Calendar cal : calendars) {
+				Result.addCalendar(cal);
 			}
-			return calendars;
+			
+			//return calendars;
+			return Result;
 		} catch (AuthenticationException e) {
 			throw new IOException(e);
 		}
@@ -750,5 +766,12 @@ public class CaldavFacade {
 	public void setVersion(String version) {
 		VERSION = version;
 		((AbstractHttpClient) httpClient).getParams().setParameter(CoreProtocolPNames.USER_AGENT, this.USER_AGENT + " Version:" + VERSION);
+	}
+	
+	public void setAccount(Account account) {
+		this.mAccount = account;
+	}
+	public void setProvider(ContentProviderClient provider) {
+		this.mProvider = provider;
 	}
 }

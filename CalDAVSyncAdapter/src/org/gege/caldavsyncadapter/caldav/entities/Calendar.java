@@ -35,8 +35,12 @@ import android.provider.CalendarContract.Calendars;
 import android.util.Log;
 
 public class Calendar {
+	public enum CalendarSource {
+		undefined, Android, CalDAV
+	}
+		
 	private static final String TAG = "Calendar";
-	
+		
 	/**
 	 * stores the CTAG of a calendar
 	 */
@@ -44,7 +48,7 @@ public class Calendar {
 	
 	/**
 	 * stores the URI of a calendar
-	 * example: http://<server>/calendarserver.php/calendars/<username>/<calendarname>
+	 * example: http://caldav.example.com/calendarserver.php/calendars/username/calendarname
 	 */
 	public static String URI = Calendars._SYNC_ID;
 	
@@ -60,9 +64,10 @@ public class Calendar {
 	
 	public boolean foundServerSide = false;
 	public boolean foundClientSide = false;
+	public CalendarSource Source = CalendarSource.undefined;
 	
 	/**
-	 * example: http://<server>/calendarserver.php/calendars/<username>/<calendarname>
+	 * example: http://caldav.example.com/calendarserver.php/calendars/username/calendarname
 	 */
 	public URI getURI() {
 		String strUri = this.getContentValueAsString(Calendar.URI);
@@ -76,30 +81,12 @@ public class Calendar {
 	}
 
 	/**
-	 * example: http://<server>/calendarserver.php/calendars/<username>/<calendarname>
+	 * example: http://caldav.example.com/calendarserver.php/calendars/username/calendarname
 	 */
 	public void setURI(URI uri) {
 		this.setContentValueAsString(Calendar.URI, uri.toString());
 	}
 
-	/**
-	 * example:
-	 * 		should be: http://caldav.example.com/calendarserver.php/calendars/<username>/<calendarname>/ 
-	 *		but is:    null
-	 */
-	//public void setUri(String syncID) {
-	//	this.setContentValueAsString(Calendar.URI, syncID);
-	//}
-	
-	/**
-	 * example:
-	 * 		should be: http://caldav.example.com/calendarserver.php/calendars/<username>/<calendarname>/ 
-	 *		but is:    null
-	 */
-	//public String getUri() {
-	//	return this.getContentValueAsString(Calendar.URI);
-	//}
-	
 	/**
 	 * example: Cleartext Display Name 
 	 */
@@ -169,7 +156,7 @@ public class Calendar {
 	/**
 	 * example: 
 	 * 		should be: calendarname
-	 * 		but is:    http://caldav.example.com/calendarserver.php/calendars/<username>/<calendarname>/
+	 * 		but is:    http://caldav.example.com/calendarserver.php/calendars/username/calendarname/
 	 */
 	public String getCalendarName() {
 		return this.getContentValueAsString(Calendars.NAME);
@@ -178,7 +165,7 @@ public class Calendar {
 	/**
 	 * example: 
 	 * 		should be: calendarname
-	 * 		but is:    http://caldav.example.com/calendarserver.php/calendars/<username>/<calendarname>/
+	 * 		but is:    http://caldav.example.com/calendarserver.php/calendars/username/calendarname/
 	 */
 	public void setCalendarName(String calendarName) {
 		this.setContentValueAsString(Calendars.NAME, calendarName);
@@ -208,17 +195,19 @@ public class Calendar {
 	/**
 	 * empty constructor
 	 */
-	public Calendar() {
+	public Calendar(CalendarSource source) {
+		this.Source = source;
 	}
 	
 	/**
 	 * creates an new instance from a cursor
 	 * @param cur must be a cursor from "ContentProviderClient" with Uri Calendars.CONTENT_URI
 	 */
-	public Calendar(Account account, ContentProviderClient provider, Cursor cur) {
+	public Calendar(Account account, ContentProviderClient provider, Cursor cur, CalendarSource source) {
 		this.mAccount = account;
 		this.mProvider = provider;
 		this.foundClientSide = true;
+		this.Source = source;
 
 		String strSyncID = cur.getString(cur.getColumnIndex(Calendars._SYNC_ID));
 		String strName = cur.getString(cur.getColumnIndex(Calendars.NAME));
@@ -251,6 +240,39 @@ public class Calendar {
 		for (String Key : this.ContentValues.keySet()) {
 			Log.v(TAG, Key + "=" + ContentValues.getAsString(Key));
 		}
+	}
+	
+	public Uri getOrCreateAndroidCalendar(CalendarList androidCalList) throws RemoteException {
+		Uri androidCalendarUri = null;
+		boolean isCalendarExist = false;
+		
+		Calendar androidCalendar = androidCalList.getCalendarByURI(this.getURI());
+		if (androidCalendar != null) {
+			isCalendarExist = true;
+			androidCalendar.foundServerSide = true;
+		}
+		
+
+		if (!isCalendarExist) {
+			Calendar newCal = androidCalList.createNewAndroidCalendar(this);
+			//androidCalendarUri = androidCalList.createNewAndroidCalendar(this);
+			androidCalendarUri = newCal.getAndroidCalendarUri();
+		} else {
+			androidCalendarUri = androidCalendar.getAndroidCalendarUri();
+			if (!this.getCalendarColorAsString().equals("")) {
+				//serverCalendar.updateCalendarColor(returnedCalendarUri, serverCalendar);
+				this.updateAndroidCalendar(androidCalendarUri, Calendars.CALENDAR_COLOR, this.getCalendarColor());
+			}
+			if ((this.ContentValues.containsKey(Calendars.CALENDAR_DISPLAY_NAME)) && 
+				(androidCalendar.ContentValues.containsKey(Calendars.CALENDAR_DISPLAY_NAME))) {
+				String serverDisplayName = this.ContentValues.getAsString(Calendars.CALENDAR_DISPLAY_NAME);
+				String clientDisplayName = androidCalendar.ContentValues.getAsString(Calendars.CALENDAR_DISPLAY_NAME);
+				if (!serverDisplayName.equals(clientDisplayName))
+					this.updateAndroidCalendar(androidCalendarUri, Calendars.CALENDAR_DISPLAY_NAME, serverDisplayName);
+			}
+		}
+		
+		return androidCalendarUri;
 	}
 	
 	/**
@@ -305,7 +327,7 @@ public class Calendar {
 	 * @param value the new value for the target
 	 * @throws RemoteException
 	 */
-	public void updateCalendar(Uri calendarUri, String target, int value) throws RemoteException {
+	public void updateAndroidCalendar(Uri calendarUri, String target, int value) throws RemoteException {
 		ContentValues mUpdateValues = new ContentValues();
 		mUpdateValues.put(target, value);
 		
@@ -319,7 +341,7 @@ public class Calendar {
 	 * @param value the new value for the target
 	 * @throws RemoteException
 	 */
-	public void updateCalendar(Uri calendarUri, String target, String value) throws RemoteException {
+	public void updateAndroidCalendar(Uri calendarUri, String target, String value) throws RemoteException {
 		ContentValues mUpdateValues = new ContentValues();
 		mUpdateValues.put(target, value);
 		

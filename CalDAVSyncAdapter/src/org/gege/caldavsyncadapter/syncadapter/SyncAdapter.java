@@ -41,6 +41,7 @@ import org.gege.caldavsyncadapter.caldav.CaldavProtocolException;
 import org.gege.caldavsyncadapter.caldav.entities.Calendar;
 import org.gege.caldavsyncadapter.caldav.entities.CalendarEvent;
 import org.gege.caldavsyncadapter.caldav.entities.CalendarList;
+import org.gege.caldavsyncadapter.caldav.entities.Calendar.CalendarSource;
 import org.gege.caldavsyncadapter.syncadapter.notifications.NotificationsHelper;
 import org.xml.sax.SAXException;
 
@@ -103,7 +104,7 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 	
 	public SyncAdapter(Context context, boolean autoInitialize) {
 		super(context, autoInitialize);
-		android.os.Debug.waitForDebugger();
+		//android.os.Debug.waitForDebugger();
 		mAccountManager = AccountManager.get(context);
 		try {
 			mVersion = context.getPackageManager().getPackageInfo(context.getPackageName(), 0).versionName;
@@ -120,47 +121,46 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 		String url = mAccountManager.getUserData(account, Constants.USER_DATA_URL_KEY);
 		Log.v(TAG, "onPerformSync() on " + account.name + " with URL " + url);
 
-		Iterable<Calendar> calendarList;
+		//Iterable<Calendar> calendarList;
+		CalendarList calendarList;
 		
 		//java.util.ArrayList<Calendar> androidCalendarList = Calendar.getCalendarList(account, provider);
-		CalendarList androidCalList = new CalendarList(account, provider);
+		CalendarList androidCalList = new CalendarList(account, provider, CalendarSource.Android);
 		androidCalList.readCalendarFromClient();
 
 		try {
 			CaldavFacade facade = new CaldavFacade(account.name, mAccountManager.getPassword(account), url);
+			facade.setAccount(account);
+			facade.setProvider(provider);
 			facade.setVersion(mVersion);
 			calendarList = facade.getCalendarList(this.getContext());
 			//String davProperties = facade.getLastDav();
+			Log.i(TAG, String.valueOf(androidCalList.getCalendarList().size()) + " calendars found at android");
 			
-			for (Calendar serverCalendar : calendarList) {
-				serverCalendar.setAccount(account);
-				serverCalendar.setProvider(provider);
-			}
-			
-			for (Calendar serverCalendar : calendarList) {
+			for (Calendar serverCalendar : calendarList.getCalendarList()) {
 				Log.i(TAG, "Detected calendar name=" + serverCalendar.getCalendarDisplayName() + " URI=" + serverCalendar.getURI());
 
-				//Uri calendarUri = getOrCreateCalendarUri(account, provider, serverCalendar, androidCalendarList);
-				Uri calendarUri = getOrCreateCalendarUri(account, provider, serverCalendar, androidCalList);
+				Uri androidCalendarUri = serverCalendar.getOrCreateAndroidCalendar(androidCalList);
+				Calendar androidCalendar = androidCalList.getCalendarByAndroidUri(androidCalendarUri);
 
 				// check if the adapter was able to get an existing calendar or create a new one
-				if (calendarUri != null) {
-					if ((FORCE_SYNCHRONIZE) ||
-						(getCalendarCTag(provider, calendarUri) == null) ||
-						(!getCalendarCTag(provider, calendarUri).equals(serverCalendar.getcTag()))) {
+				if (androidCalendarUri != null) {
+					
+					if (
+							(FORCE_SYNCHRONIZE) ||
+							(getCalendarCTag(provider, androidCalendarUri) == null) ||
+							(!getCalendarCTag(provider, androidCalendarUri).equals(serverCalendar.getcTag()))
+						) {
 							Log.d(TAG, "CTag has changed, something to synchronise");
 							
-							synchroniseEvents(facade, account, provider, calendarUri, serverCalendar, syncResult.stats);
+							this.synchroniseEvents(facade, account, provider, androidCalendarUri, serverCalendar, syncResult.stats);
 							
 							Log.d(TAG, "Updating stored CTag");
-							//serverCalendar.updateCalendarCTag(calendarUri, serverCalendar.getcTag());
-							serverCalendar.updateCalendar(calendarUri, Calendar.CTAG, serverCalendar.getcTag());
-							//setCalendarCTag(account, provider, calendarUri, calendar.getcTag());
-						
+							serverCalendar.updateAndroidCalendar(androidCalendarUri, Calendar.CTAG, serverCalendar.getcTag());
 					} else {
 						Log.d(TAG, "CTag has not changed, nothing to do");
 	
-						long CalendarID = ContentUris.parseId(calendarUri);
+						long CalendarID = ContentUris.parseId(androidCalendarUri);
 						String selection = "(" + Events.CALENDAR_ID + " = ?)";
 						String[] selectionArgs = new String[] {String.valueOf(CalendarID)}; 
 						Cursor countCursor = provider.query(Events.CONTENT_URI, new String[] {"count(*) AS count"},
@@ -174,7 +174,7 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 				        countCursor.close();
 					}
 					
-					this.checkDirtyAndroidEvents(provider, account, calendarUri, facade, serverCalendar.getURI(),  syncResult.stats);
+					this.checkDirtyAndroidEvents(provider, account, androidCalendarUri, facade, serverCalendar.getURI(),  syncResult.stats);
 					//int rowDirty = this.checkDirtyAndroidEvents(provider, account, calendarUri, facade, calendar.getURI(),  syncResult.stats);
 					//Log.i(TAG,"Rows dirty:    " + String.valueOf(rowDirty));
 				} else {
@@ -186,7 +186,7 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 			}
 			
 			// check weather a calendar is not synced -> delete it at android
-			androidCalList.deleteCalendarOnlyOnClientSide();
+			androidCalList.deleteCalendarOnClientSideOnly();
 
 		/*} catch (final AuthenticatorException e) {
             syncResult.stats.numParseExceptions++;
@@ -792,37 +792,6 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 			
 		}
 		return Result;
-	}
-
-	private Uri getOrCreateCalendarUri(Account account, ContentProviderClient provider, Calendar serverCalendar, CalendarList androidCalList) throws RemoteException {
-		Uri androidCalendarUri = null;
-		boolean isCalendarExist = false;
-		
-		Calendar androidCalendar = androidCalList.getCalendarByURI(serverCalendar.getURI());
-		if (androidCalendar != null) {
-			isCalendarExist = true;
-			androidCalendar.foundServerSide = true;
-		}
-		
-
-		if (!isCalendarExist) {
-			androidCalendarUri = androidCalList.createNewAndroidCalendar(serverCalendar);
-		} else {
-			androidCalendarUri = androidCalendar.getAndroidCalendarUri();
-			if (!serverCalendar.getCalendarColorAsString().equals("")) {
-				//serverCalendar.updateCalendarColor(returnedCalendarUri, serverCalendar);
-				serverCalendar.updateCalendar(androidCalendarUri, Calendars.CALENDAR_COLOR, serverCalendar.getCalendarColor());
-			}
-			if ((serverCalendar.ContentValues.containsKey(Calendars.CALENDAR_DISPLAY_NAME)) && 
-				(androidCalendar.ContentValues.containsKey(Calendars.CALENDAR_DISPLAY_NAME))) {
-				String serverDisplayName = serverCalendar.ContentValues.getAsString(Calendars.CALENDAR_DISPLAY_NAME);
-				String clientDisplayName = androidCalendar.ContentValues.getAsString(Calendars.CALENDAR_DISPLAY_NAME);
-				if (!serverDisplayName.equals(clientDisplayName))
-					serverCalendar.updateCalendar(androidCalendarUri, Calendars.CALENDAR_DISPLAY_NAME, serverDisplayName);
-			}
-		}
-		
-		return androidCalendarUri;
 	}
 	
 	/**
