@@ -62,13 +62,23 @@ import net.fortuna.ical4j.model.property.Summary;
 import net.fortuna.ical4j.model.property.Trigger;
 import net.fortuna.ical4j.model.property.Uid;
 import net.fortuna.ical4j.model.property.Version;
+import android.accounts.Account;
+import android.content.ContentProviderClient;
+import android.content.ContentValues;
+import android.content.SyncStats;
 import android.database.Cursor;
 import android.net.Uri;
+import android.os.RemoteException;
 import android.provider.CalendarContract.Attendees;
+import android.provider.CalendarContract.Calendars;
 import android.provider.CalendarContract.Events;
 import android.provider.CalendarContract.Reminders;
 
+import org.gege.caldavsyncadapter.Event;
+import org.gege.caldavsyncadapter.caldav.CaldavFacade;
 import org.gege.caldavsyncadapter.caldav.entities.CalendarEvent;
+import org.gege.caldavsyncadapter.caldav.entities.DavCalendar;
+import org.gege.caldavsyncadapter.syncadapter.SyncAdapter;
 
 public class AndroidEvent extends org.gege.caldavsyncadapter.Event {
 
@@ -87,18 +97,23 @@ public class AndroidEvent extends org.gege.caldavsyncadapter.Event {
 	private ComponentList mReminders = new ComponentList();
 
 	private Calendar mCalendar = null;
+
+	private Account mAccount = null;
+	private ContentProviderClient mProvider = null;;
+	
+	public AndroidEvent(Account account, ContentProviderClient provider, Uri uri, Uri calendarUri) {
+		super();
+		this.setUri(uri);
+		this.mAccount = account;
+		this.mProvider = provider;
+		//this.setCounterpartUri(calendarUri);
+		mAndroidCalendarUri = calendarUri;
+	}
 	
 	public Calendar getIcsEvent() {
 		return mCalendar;
 	}
 	
-	public AndroidEvent(Uri uri, Uri calendarUri) {
-		super();
-		this.setUri(uri);
-		//this.setCounterpartUri(calendarUri);
-		mAndroidCalendarUri = calendarUri;
-	}
-
 	public String getETag() {
 		String Result = "";
 		if (this.ContentValues.containsKey(ETAG))
@@ -537,5 +552,30 @@ public class AndroidEvent extends org.gege.caldavsyncadapter.Event {
 		
 		return Result;
 	}
+	
+	/**
+	 * marks the android event as already handled
+	 * @return
+	 * @see AndroidEvent#cInternalTag
+	 * @see SyncAdapter#synchroniseEvents(CaldavFacade, Account, ContentProviderClient, Uri, DavCalendar, SyncStats)
+	 * @throws RemoteException
+	 */
+	public boolean tagAndroidEvent() throws RemoteException {
+		
+		ContentValues values = new ContentValues();
+		values.put(Event.INTERNALTAG, 1);
+		
+		int RowCount = this.mProvider.update(asSyncAdapter(this.getUri(), this.mAccount.name, this.mAccount.type), values, null, null);
+		//Log.e(TAG,"Rows updated: " + RowCount.toString());
+		
+		return (RowCount == 1);
+	} 
+	
+	private static Uri asSyncAdapter(Uri uri, String account, String accountType) {
+	    return uri.buildUpon()
+	        .appendQueryParameter(android.provider.CalendarContract.CALLER_IS_SYNCADAPTER,"true")
+	        .appendQueryParameter(Calendars.ACCOUNT_NAME, account)
+	        .appendQueryParameter(Calendars.ACCOUNT_TYPE, accountType).build();
+	 }
 }
 

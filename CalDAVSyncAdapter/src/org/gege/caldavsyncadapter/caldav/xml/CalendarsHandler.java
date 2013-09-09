@@ -28,8 +28,8 @@ import java.util.Arrays;
 import java.util.List;
 
 import org.gege.caldavsyncadapter.BuildConfig;
-import org.gege.caldavsyncadapter.caldav.entities.Calendar;
-import org.gege.caldavsyncadapter.caldav.entities.Calendar.CalendarSource;
+import org.gege.caldavsyncadapter.caldav.entities.DavCalendar;
+import org.gege.caldavsyncadapter.caldav.entities.DavCalendar.CalendarSource;
 import org.xml.sax.Attributes;
 import org.xml.sax.SAXException;
 import org.xml.sax.helpers.DefaultHandler;
@@ -54,8 +54,8 @@ public class CalendarsHandler extends DefaultHandler {
 
 	private StringBuilder stringBuilder = new StringBuilder();
 	private String currentElement;
-	private Calendar calendar;
-	public List<Calendar> calendars = new ArrayList<Calendar>();
+	private DavCalendar calendar;
+	public List<DavCalendar> calendars = new ArrayList<DavCalendar>();
 	private boolean isInResourceType = false;
 	private boolean isCalendarResource;
 
@@ -66,7 +66,7 @@ public class CalendarsHandler extends DefaultHandler {
 	public void startElement(String uri, String localName, String qName,
 			Attributes attributes) throws SAXException {
 		if (RESPONSE.equals(localName)) {
-			calendar = new Calendar(CalendarSource.CalDAV);
+			calendar = new DavCalendar(CalendarSource.CalDAV);
 			isCalendarResource = false;
 		} else if (RESOURCETYPE.equals(localName)) {
 			isInResourceType = true;
@@ -108,7 +108,7 @@ public class CalendarsHandler extends DefaultHandler {
 				} else if (DISPLAYNAME.equals(localName)) {
 					calendar.setCalendarDisplayName(stringBuilder.toString());
 				} else if (GETCTAG.equals(localName)) {
-					calendar.setCTag(stringBuilder.toString());
+					calendar.setCTag(stringBuilder.toString(), false);
 				} else if (CALENDAR_COLOR.equals(localName)) {
 					calendar.setCalendarColorAsString(stringBuilder.toString());
 				}
@@ -122,7 +122,7 @@ public class CalendarsHandler extends DefaultHandler {
 		currentElement=null;
 	}
 
-	private boolean isValidCalendar(Calendar calendar) {
+	private boolean isValidCalendar(DavCalendar calendar) {
 		return calendar != null && calendar.getURI() != null
 				&& calendar.getcTag() != null
 				&& calendar.getCalendarDisplayName() != null;

@@ -50,16 +50,22 @@ import net.fortuna.ical4j.model.property.Status;
 import net.fortuna.ical4j.util.CompatibilityHints;
 
 import org.apache.http.client.ClientProtocolException;
+import org.gege.caldavsyncadapter.Event;
 import org.gege.caldavsyncadapter.android.entities.AndroidEvent;
 import org.gege.caldavsyncadapter.caldav.CaldavFacade;
 import org.gege.caldavsyncadapter.caldav.CaldavProtocolException;
+import org.gege.caldavsyncadapter.syncadapter.SyncAdapter;
 
 import android.accounts.Account;
 import android.content.ContentProviderClient;
 import android.content.ContentUris;
 import android.content.ContentValues;
+import android.content.SyncStats;
+import android.database.Cursor;
 import android.net.Uri;
+import android.os.RemoteException;
 import android.provider.CalendarContract.Attendees;
+import android.provider.CalendarContract.Calendars;
 import android.provider.CalendarContract.Events;
 import android.provider.CalendarContract.Reminders;
 import android.util.Log;
@@ -86,6 +92,14 @@ public class CalendarEvent extends org.gege.caldavsyncadapter.Event {
 	private String mstrTimeZoneStart = "";
 	private String mstrTimeZoneEnd = "";
 
+	private Account mAccount = null;
+	private ContentProviderClient mProvider = null;
+	
+	public CalendarEvent(Account account, ContentProviderClient provider) {
+		this.mAccount = account;
+		this.mProvider = provider;
+	}
+	
 	public String getETag() {
 		return eTag;
 	}
@@ -132,7 +146,6 @@ public class CalendarEvent extends org.gege.caldavsyncadapter.Event {
 	 * @see org.gege.caldavsyncadapter.syncadapter.SyncAdapter#createAndroidEvent(ContentProviderClient provider, Account account, Uri calendarUri, CalendarEvent calendarEvent)
 	 * @see org.gege.caldavsyncadapter.syncadapter.SyncAdapter#updateAndroidEvent(ContentProviderClient provider, Account account, AndroidEvent androidEvent, CalendarEvent calendarEvent)
 	 */
-	//public boolean readContentValues(Uri calendarUri) {
 	public boolean readContentValues() {
 		this.ContentValues.put(Events.DTSTART, this.getStartTime());
 		this.ContentValues.put(Events.EVENT_TIMEZONE, this.getTimeZoneStart());
@@ -185,7 +198,7 @@ public class CalendarEvent extends org.gege.caldavsyncadapter.Event {
 		
 		CaldavFacade.fetchEventBody(this);
 		
-		boolean Parse = parseIcs();
+		boolean Parse = this.parseIcs();
 		if (!Parse)
 			Error = true;
 		
@@ -708,7 +721,7 @@ public class CalendarEvent extends org.gege.caldavsyncadapter.Event {
 	 * @throws IOException
 	 * @throws ParserException
 	 */
-	public boolean parseIcs() throws CaldavProtocolException, IOException, ParserException {
+	private boolean parseIcs() throws CaldavProtocolException, IOException, ParserException {
 		boolean Error = false;
 		
 		CalendarBuilder builder = new CalendarBuilder();
@@ -754,5 +767,233 @@ public class CalendarEvent extends org.gege.caldavsyncadapter.Event {
 			 
 		return !Error;
 	}
+
+	/**
+	 * searches for an android event
+	 * @param androidCalendar
+	 * @return the android event
+	 * @throws RemoteException
+	 */
+	public AndroidEvent getAndroidEvent(DavCalendar androidCalendar) throws RemoteException {
+		boolean Error = false;
+		Uri uriEvents = Events.CONTENT_URI;
+		Uri uriAttendee = Attendees.CONTENT_URI;
+		Uri uriReminder = Reminders.CONTENT_URI;
+		AndroidEvent androidEvent = null;
+		
+		String selection = "(" + Events._SYNC_ID + " = ?)";
+		String[] selectionArgs = new String[] {this.getUri().toString()}; 
+		Cursor curEvent = this.mProvider.query(uriEvents, null, selection, selectionArgs, null);
+		
+		Cursor curAttendee = null;
+		Cursor curReminder = null;
+		
+		if (curEvent == null) {
+			Error = true;
+		}
+		if (!Error) {
+			if (curEvent.getCount() == 0) {
+				Error = true;
+			}
+		}
+		if (!Error) {
+			curEvent.moveToNext();
+		
+			long EventID = curEvent.getLong(curEvent.getColumnIndex(Events._ID));
+			Uri returnedUri = ContentUris.withAppendedId(uriEvents, EventID);
+			
+			androidEvent = new AndroidEvent(this.mAccount, this.mProvider, returnedUri, androidCalendar.getAndroidCalendarUri());
+			androidEvent.readContentValues(curEvent);
+			
+			selection = "(" + Attendees.EVENT_ID + " = ?)";
+			selectionArgs = new String[] {String.valueOf(EventID)}; 
+			curAttendee = this.mProvider.query(uriAttendee, null, selection, selectionArgs, null);
+			selection = "(" + Reminders.EVENT_ID + " = ?)";
+			selectionArgs = new String[] {String.valueOf(EventID)}; 
+			curReminder = this.mProvider.query(uriReminder, null, selection, selectionArgs, null);
+			androidEvent.readAttendees(curAttendee);
+			androidEvent.readReminder(curReminder);
+			curAttendee.close();
+			curReminder.close();
+		}
+		curEvent.close();
+		
+		return androidEvent;
+	}
+	
+	/**
+	 * creates a new androidEvent from a given calendarEvent
+	 * @param androidCalendar
+	 * @return
+	 * @throws ClientProtocolException
+	 * @throws IOException
+	 * @throws CaldavProtocolException
+	 * @throws RemoteException
+	 * @throws ParserException
+	 * @see {@link SyncAdapter#synchroniseEvents(CaldavFacade, Account, ContentProviderClient, Uri, DavCalendar, SyncStats)}
+	 */
+	public boolean createAndroidEvent(DavCalendar androidCalendar) throws ClientProtocolException, IOException, CaldavProtocolException, RemoteException, ParserException {
+		boolean Result = false;
+		boolean BodyFetched = this.fetchBody();
+		int CountAttendees = 0;
+		int CountReminders = 0;
+		
+		if (BodyFetched) {
+			//calendarEvent.readContentValues(calendarUri);
+			this.readContentValues();
+			this.setAndroidCalendarId(ContentUris.parseId(androidCalendar.getAndroidCalendarUri()));
+		
+			Uri uri = this.mProvider.insert(asSyncAdapter(Events.CONTENT_URI, this.mAccount.name, this.mAccount.type), this.ContentValues);
+			this.setAndroidEventUri(uri);
+		
+			Log.d(TAG, "Creating calendar event for " + uri.toString());
+			
+			//check the attendees
+			java.util.ArrayList<ContentValues> AttendeeList = this.getAttandees();
+			for (ContentValues Attendee : AttendeeList) {
+				this.mProvider.insert(Attendees.CONTENT_URI, Attendee);
+				CountAttendees += 1;
+			}
+			
+			//check the reminders
+			java.util.ArrayList<ContentValues> ReminderList = this.getReminders();
+			for (ContentValues Reminder : ReminderList) {
+				this.mProvider.insert(Reminders.CONTENT_URI, Reminder);
+				CountReminders += 1;
+			}
+			
+			if ((CountAttendees > 0) || (CountReminders > 0)) {
+				//the events gets dirty when attendees or reminders were added
+				AndroidEvent androidEvent = this.getAndroidEvent(androidCalendar);
+				
+				androidEvent.ContentValues.put(Events.DIRTY, 0);
+				int RowCount = this.mProvider.update(asSyncAdapter(androidEvent.getUri(), this.mAccount.name, this.mAccount.type), androidEvent.ContentValues, null, null);
+				Result = (RowCount == 1);
+			} else {
+				Result = true;
+			}
+			
+			
+		}
+		return Result;
+	}
+	
+	/**
+	 * the android event is getting updated
+	 * @param provider
+	 * @param account
+	 * @param androidEvent
+	 * @param calendarEvent
+	 * @return
+	 * @throws ClientProtocolException
+	 * @throws IOException
+	 * @throws CaldavProtocolException
+	 * @throws RemoteException
+	 * @throws ParserException
+	 * @see {@link SyncAdapter#synchroniseEvents(CaldavFacade, Account, ContentProviderClient, Uri, Calendar, SyncStats)}
+	 */
+	public boolean updateAndroidEvent(AndroidEvent androidEvent) throws ClientProtocolException, IOException, CaldavProtocolException, RemoteException, ParserException {
+		boolean BodyFetched = this.fetchBody();
+		int Rows = 0;
+		
+		if (BodyFetched) {
+			this.readContentValues();
+			this.setAndroidCalendarId(androidEvent.getAndroidCalendarId());
+			this.setAndroidEventUri(androidEvent.getUri());
+		
+			Log.d(TAG, "AndroidEvent is dirty: " + androidEvent.ContentValues.getAsString(Events.DIRTY));
+			
+			if (androidEvent.checkEventValuesChanged(this.ContentValues)) {
+				// just set the raw data from server event into android event
+				if (androidEvent.ContentValues.containsKey(Event.RAWDATA))
+					androidEvent.ContentValues.remove(Event.RAWDATA);
+				androidEvent.ContentValues.put(Event.RAWDATA, this.ContentValues.getAsString(Event.RAWDATA));
+				
+				//update the attendees and reminders
+				this.updateAndroidAttendees();
+				this.updateAndroidReminder();
+
+				androidEvent.ContentValues.put(Events.DIRTY, 0); // the event is now in sync
+				Log.d(TAG, "Update calendar event: for "+androidEvent.getUri());
+				
+				Rows = mProvider.update(asSyncAdapter(androidEvent.getUri(), mAccount.name, mAccount.type), androidEvent.ContentValues, null, null);
+				//Log.i(TAG, "Updated calendar event: rows effected " + Rows.toString());
+			} else {
+				Log.d(TAG, "Update calendar event not needed: for "+androidEvent.getUri());
+			}
+		}
+		return (Rows == 1);
+	}
+	
+	/**
+	 * updates the attendees from a calendarEvent to its androidEvent.
+	 * the calendarEvent has to know its androidEvent via {@link CalendarEvent#setAndroidEventUri(Uri)}
+	 * @param provider
+	 * @return
+	 * @see SyncAdapter#updateAndroidEvent(ContentProviderClient, Account, AndroidEvent, CalendarEvent)
+	 */
+	private boolean updateAndroidAttendees() {
+		boolean Result = false;
+		
+		try {
+			String mSelectionClause = "(" + Attendees.EVENT_ID + " = ?)";
+			String[] mSelectionArgs = {Long.toString(ContentUris.parseId(this.getAndroidEventUri())) };
+			int RowDelete;
+			RowDelete = this.mProvider.delete(Attendees.CONTENT_URI, mSelectionClause, mSelectionArgs);
+			Log.d(TAG, "Attendees Deleted:" + String.valueOf(RowDelete));
+			
+			java.util.ArrayList<ContentValues> AttendeeList = this.getAttandees();
+			for (ContentValues Attendee : AttendeeList) {
+				this.mProvider.insert(Attendees.CONTENT_URI, Attendee);
+			}
+			Log.d(TAG, "Attendees Inserted:" + String.valueOf(AttendeeList.size()));
+			Result = true;
+		} catch (RemoteException e) {
+			e.printStackTrace();
+		}
+		
+		return Result;
+	}
+	
+	/**
+	 * update the reminders from a calendarEvent to its androidEvent.
+	 * the calendarEvent has to know its androidEvent via {@link CalendarEvent#setAndroidEventUri(Uri)}
+	 * @param provider
+	 * @return
+	 * @see SyncAdapter#updateAndroidEvent(ContentProviderClient, Account, AndroidEvent, CalendarEvent)
+	 */
+	private boolean updateAndroidReminder() {
+		boolean Result = false;
+		
+		try {
+			String mSelectionClause = "(" + Reminders.EVENT_ID + " = ?)";
+			String[] mSelectionArgs = {Long.toString(ContentUris.parseId(this.getAndroidEventUri())) };
+			int RowDelete;
+			RowDelete = this.mProvider.delete(Reminders.CONTENT_URI, mSelectionClause, mSelectionArgs);
+			Log.d(TAG, "Reminders Deleted:" + String.valueOf(RowDelete));
+			
+			
+			Uri ReminderUri;
+			java.util.ArrayList<ContentValues> ReminderList = this.getReminders();
+			for (ContentValues Reminder : ReminderList) {
+				ReminderUri = this.mProvider.insert(Reminders.CONTENT_URI, Reminder);
+				System.out.println(ReminderUri);
+			}
+			Log.d(TAG, "Reminders Inserted:" + String.valueOf(ReminderList.size()));
+			
+			Result = true;
+		} catch (RemoteException e) {
+			e.printStackTrace();
+		}
+		
+		return Result;
+	}
+	
+	private static Uri asSyncAdapter(Uri uri, String account, String accountType) {
+	    return uri.buildUpon()
+	        .appendQueryParameter(android.provider.CalendarContract.CALLER_IS_SYNCADAPTER,"true")
+	        .appendQueryParameter(Calendars.ACCOUNT_NAME, account)
+	        .appendQueryParameter(Calendars.ACCOUNT_TYPE, accountType).build();
+	 }
 }
 

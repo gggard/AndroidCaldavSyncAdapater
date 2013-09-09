@@ -22,12 +22,14 @@ package org.gege.caldavsyncadapter;
 
 import android.content.ContentValues;
 import android.provider.CalendarContract.Events;
+import android.util.Log;
 
 /**
  * abstract class for Calendar and Android events 
  */
 abstract public class Event {
-
+	private static final String TAG = "Event";
+	
 	/**
 	 * stores the ETAG of an event
 	 */
@@ -124,6 +126,58 @@ abstract public class Event {
 		String Result = "";
 		if (this.ContentValues.containsKey(UID))
 			Result = this.ContentValues.getAsString(UID);
+		
+		return Result;
+	}
+	
+	/**
+	 * compares the given ContentValues with the current ones for differences
+	 * @param calendarEventValues the contentValues of the calendar event
+	 * @return if the events are different
+	 */
+	public boolean checkEventValuesChanged(ContentValues calendarEventValues) {
+		boolean Result = false;
+		Object ValueAndroid = null;
+		Object ValueCalendar = null;
+		java.util.ArrayList<String> CompareItems = Event.getComparableItems();
+		
+		for (String Key: CompareItems) {
+
+			if (this.ContentValues.containsKey(Key)) 
+				ValueAndroid = this.ContentValues.get(Key);
+			else
+				ValueAndroid = null;
+
+			if (calendarEventValues.containsKey(Key))
+				ValueCalendar = calendarEventValues.get(Key);
+			else
+				ValueCalendar = null;
+
+			/*
+			 * TODO: Sync is designed to "Server always wins", should be a general option for this adapter
+			 */
+			if (ValueAndroid != null) {
+				if (ValueCalendar != null) {
+					if (!ValueAndroid.toString().equals(ValueCalendar.toString())) {
+						Log.d(TAG, "difference in " + Key.toString() + ":" + ValueAndroid.toString() + " <> " + ValueCalendar.toString());
+						this.ContentValues.put(Key,ValueCalendar.toString());
+						Result = true;
+					}
+				} else {
+					Log.d(TAG, "difference in " + Key.toString() + ":" + ValueAndroid.toString() + " <> null");
+					this.ContentValues.putNull(Key);
+					Result = true;
+				}
+			} else {
+				if (ValueCalendar != null) {
+					Log.d(TAG, "difference in " + Key.toString() + ":null <> " + ValueCalendar.toString());
+					this.ContentValues.put(Key, ValueCalendar.toString());
+					Result = true;
+				} else {
+					// both null -> this is ok
+				}
+			}
+		}
 		
 		return Result;
 	}

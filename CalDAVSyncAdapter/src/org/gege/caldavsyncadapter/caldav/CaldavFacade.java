@@ -77,8 +77,8 @@ import org.apache.http.params.HttpProtocolParams;
 import org.apache.http.protocol.BasicHttpContext;
 import org.apache.http.protocol.HttpContext;
 import org.gege.caldavsyncadapter.BuildConfig;
-import org.gege.caldavsyncadapter.caldav.entities.Calendar;
-import org.gege.caldavsyncadapter.caldav.entities.Calendar.CalendarSource;
+import org.gege.caldavsyncadapter.caldav.entities.DavCalendar;
+import org.gege.caldavsyncadapter.caldav.entities.DavCalendar.CalendarSource;
 import org.gege.caldavsyncadapter.caldav.entities.CalendarEvent;
 import org.gege.caldavsyncadapter.caldav.entities.CalendarList;
 import org.gege.caldavsyncadapter.caldav.http.HttpPropFind;
@@ -236,7 +236,7 @@ public class CaldavFacade {
 	public TestConnectionResult testConnection() throws HttpHostConnectException, IOException, URISyntaxException, ParserConfigurationException, SAXException {
 		Log.d(TAG, "start testConnection ");
 		try {
-			List<Calendar> calendars = new ArrayList<Calendar>();
+			List<DavCalendar> calendars = new ArrayList<DavCalendar>();
 			calendars = forceGetCalendarsFromUri(null, url.toURI());
 			if (calendars.size() != 0) {
 				return TestConnectionResult.SUCCESS;
@@ -245,7 +245,7 @@ public class CaldavFacade {
 			URI userPrincipal = getUserPrincipal();
 			List<URI> calendarSets = getCalendarHomes(userPrincipal);
 			for (URI calendarSet : calendarSets) {
-				List<Calendar> calendarSetCalendars = getCalendarsFromSet(calendarSet);
+				List<DavCalendar> calendarSetCalendars = getCalendarsFromSet(calendarSet);
 				calendars.addAll(calendarSetCalendars);
 			}
 			if (calendarSets.size() == 0) {
@@ -272,8 +272,8 @@ public class CaldavFacade {
 	 * @throws AuthenticationException
 	 * @throws FileNotFoundException
 	 */
-	private List<Calendar> forceGetCalendarsFromUri(Context context, URI uri) throws AuthenticationException, FileNotFoundException {
-		List<Calendar> calendars = new ArrayList<Calendar>();
+	private List<DavCalendar> forceGetCalendarsFromUri(Context context, URI uri) throws AuthenticationException, FileNotFoundException {
+		List<DavCalendar> calendars = new ArrayList<DavCalendar>();
 		Exception exception = null;
 		try {
 			calendars = getCalendarsFromSet(uri);
@@ -381,7 +381,7 @@ public class CaldavFacade {
 			+ "<cs:getctag /></d:prop></d:propfind>";
 
 	
-	private List<Calendar> getCalendarsFromSet(URI calendarSet)
+	private List<DavCalendar> getCalendarsFromSet(URI calendarSet)
 			throws ClientProtocolException, IOException,
 			CaldavProtocolException, AuthenticationException,
 			FileNotFoundException {
@@ -390,7 +390,7 @@ public class CaldavFacade {
 		checkStatus(response);
 		CalendarsHandler calendarsHandler = new CalendarsHandler(calendarSet);
 		parseXML(response, calendarsHandler);
-		List<Calendar> result = calendarsHandler.calendars;
+		List<DavCalendar> result = calendarsHandler.calendars;
 		if (BuildConfig.DEBUG) {
 			Log.i(TAG,
 					result.size() + " calendars found in set "
@@ -411,7 +411,7 @@ public class CaldavFacade {
 	 * </ol>
 	 * @param context 
 	 * 
-	 * @return List of {@link Calendar}
+	 * @return List of {@link DavCalendar}
 	 * @throws ClientProtocolException
 	 *             http protocol error
 	 * @throws IOException
@@ -427,7 +427,7 @@ public class CaldavFacade {
 			CaldavProtocolException {
 		try {
 			CalendarList Result = new CalendarList(this.mAccount, this.mProvider, CalendarSource.CalDAV);
-			List<Calendar> calendars = new ArrayList<Calendar>();
+			List<DavCalendar> calendars = new ArrayList<DavCalendar>();
 			
 			calendars = forceGetCalendarsFromUri(context, this.url.toURI());
 			
@@ -436,11 +436,11 @@ public class CaldavFacade {
 				URI userPrincipal = getUserPrincipal();
 				List<URI> calendarSets = getCalendarHomes(userPrincipal);
 				for (URI calendarSet : calendarSets) {
-					List<Calendar> calendarSetCalendars = getCalendarsFromSet(calendarSet);
+					List<DavCalendar> calendarSetCalendars = getCalendarsFromSet(calendarSet);
 					calendars.addAll(calendarSetCalendars);
 				}
 			}
-			for (Calendar cal : calendars) {
+			for (DavCalendar cal : calendars) {
 				Result.addCalendar(cal);
 			}
 			
@@ -451,7 +451,7 @@ public class CaldavFacade {
 		}
 	}
 
-	public Iterable<CalendarEvent> getCalendarEvents(Calendar calendar)
+	public Iterable<CalendarEvent> getCalendarEvents(DavCalendar calendar)
 			throws URISyntaxException, ClientProtocolException, IOException,
 			ParserConfigurationException, SAXException {
 
@@ -502,7 +502,7 @@ public class CaldavFacade {
 		NodeList items = root.getElementsByTagNameNS("*", "getetag");
 
 		for (int i = 0; i < items.getLength(); i++) {
-			CalendarEvent calendarEvent = new CalendarEvent();
+			CalendarEvent calendarEvent = new CalendarEvent(this.mAccount, this.mProvider);
 
 			Node node = items.item(i);
 

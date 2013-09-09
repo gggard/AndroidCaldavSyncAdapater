@@ -2,23 +2,24 @@ package org.gege.caldavsyncadapter.caldav.entities;
 
 import java.net.URI;
 
-import org.gege.caldavsyncadapter.CalendarColors;
-import org.gege.caldavsyncadapter.caldav.entities.Calendar.CalendarSource;
+//import org.gege.caldavsyncadapter.CalendarColors;
+import org.gege.caldavsyncadapter.caldav.entities.DavCalendar.CalendarSource;
+import org.gege.caldavsyncadapter.syncadapter.notifications.NotificationsHelper;
 
 import android.accounts.Account;
 import android.content.ContentProviderClient;
-import android.content.ContentUris;
-import android.content.ContentValues;
+//import android.content.ContentUris;
+//import android.content.ContentValues;
 import android.database.Cursor;
 import android.net.Uri;
 import android.os.RemoteException;
 import android.provider.CalendarContract.Calendars;
-import android.util.Log;
+//import android.util.Log;
 
 public class CalendarList {
-	private static final String TAG = "CalendarList";
+//	private static final String TAG = "CalendarList";
 	
-	private java.util.ArrayList<Calendar> mList = new java.util.ArrayList<Calendar>();
+	private java.util.ArrayList<DavCalendar> mList = new java.util.ArrayList<DavCalendar>();
 	
 	private Account mAccount = null;
 	private ContentProviderClient mProvider = null;
@@ -31,7 +32,7 @@ public class CalendarList {
 		this.Source = source;
 	}
 	
-	public Calendar getCalendarById(int calendarId) {
+/*	public Calendar getCalendarByAndroidCalendarId(int calendarId) {
 		Calendar Result = null;
 		
 		for (Calendar Item : mList) {
@@ -40,12 +41,12 @@ public class CalendarList {
 		}
 		
 		return Result;
-	}
+	}*/
 	
-	public Calendar getCalendarByURI(URI calendarURI) {
-		Calendar Result = null;
+	public DavCalendar getCalendarByURI(URI calendarURI) {
+		DavCalendar Result = null;
 		
-		for (Calendar Item : mList) {
+		for (DavCalendar Item : mList) {
 			if (Item.getURI().equals(calendarURI))
 				Result = Item;
 		}
@@ -53,10 +54,10 @@ public class CalendarList {
 		return Result;
 	}
 	
-	public Calendar getCalendarByAndroidUri(Uri androidCalendarUri) {
-		Calendar Result = null;
+	public DavCalendar getCalendarByAndroidUri(Uri androidCalendarUri) {
+		DavCalendar Result = null;
 		
-		for (Calendar Item : mList) {
+		for (DavCalendar Item : mList) {
 			if (Item.getAndroidCalendarUri().equals(androidCalendarUri))
 				Result = Item;
 		}
@@ -91,7 +92,7 @@ public class CalendarList {
 		
 		if (cur != null) {
 			while (cur.moveToNext()) {
-				mList.add(new Calendar(mAccount, mProvider, cur, this.Source));
+				mList.add(new DavCalendar(mAccount, mProvider, cur, this.Source));
 			}
 			cur.close();
 			Result = true;
@@ -100,77 +101,12 @@ public class CalendarList {
 		return Result;
 	}
 	
-	//public Uri createNewAndroidCalendar(Calendar serverCalendar) {
-	public Calendar createNewAndroidCalendar(Calendar serverCalendar) {
-		//boolean Result = false;
-		Uri newUri = null;
-		Calendar Result = null;
-		//Calendar newCal = null;
-		
-		final ContentValues contentValues = new ContentValues();
-		//contentValues.put(Calendars.NAME, calendar.getURI().toString());
-		contentValues.put(Calendar.URI, serverCalendar.getURI().toString());
-
-		contentValues.put(Calendars.VISIBLE, 1);
-		contentValues.put(Calendars.CALENDAR_DISPLAY_NAME, serverCalendar.getCalendarDisplayName());
-		contentValues.put(Calendars.ACCOUNT_NAME, mAccount.name);
-		contentValues.put(Calendars.ACCOUNT_TYPE, mAccount.type);
-		contentValues.put(Calendars.OWNER_ACCOUNT, mAccount.name);
-		contentValues.put(Calendars.SYNC_EVENTS, 1);
-		contentValues.put(Calendars.CALENDAR_ACCESS_LEVEL, Calendars.CAL_ACCESS_OWNER);
-		
-		if (!serverCalendar.getCalendarColorAsString().equals("")) {
-			contentValues.put(Calendars.CALENDAR_COLOR, serverCalendar.getCalendarColor());
-		} else {
-			// find a color
-			int index = mList.size();
-			index = index % CalendarColors.colors.length;
-			contentValues.put(Calendars.CALENDAR_COLOR, CalendarColors.colors[index]);
-		}
-
-		try {
-			newUri = mProvider.insert(asSyncAdapter(Calendars.CONTENT_URI, mAccount.name, mAccount.type), contentValues);
-		} catch (RemoteException e) {
-			e.printStackTrace();
-		}
-
-		// it is possible that this calendar already exists but the provider failed to find it within isCalendarExist()
-		// the adapter would try to create a new calendar but the provider fails again to create a new calendar.
-		if (newUri != null) {
-			long newCalendarId = ContentUris.parseId(newUri);
-			Log.v(TAG, "New calendar created : URI=" + newUri + " id=" + newCalendarId);
-
-			Cursor cur = null;
-			Uri uri = Calendars.CONTENT_URI;   
-			String selection = "(" + Calendars._ID +  " = ?)";
-			String[] selectionArgs = new String[] {String.valueOf(newCalendarId)}; 
-
-			// Submit the query and get a Cursor object back. 
-			try {
-				cur = mProvider.query(uri, null, selection, selectionArgs, null);
-			} catch (RemoteException e) {
-				e.printStackTrace();
-			}
-			
-			if (cur != null) {
-				while (cur.moveToNext()) {
-					Result = new Calendar(mAccount, mProvider, cur, this.Source);
-					Result.foundServerSide = true;
-				}
-				cur.close();
-				if (Result != null)
-					this.mList.add(Result);
-			}
-		}
-		
-		return Result;
-	}
-	
-	public boolean deleteCalendarOnClientSideOnly() {
+	public boolean deleteCalendarOnClientSideOnly(android.content.Context context) {
 		boolean Result = false;
 		
-		for (Calendar androidCalendar : this.mList) {
+		for (DavCalendar androidCalendar : this.mList) {
 			if (!androidCalendar.foundServerSide) {
+				NotificationsHelper.signalSyncErrors(context, "CalDAV Sync Adapter", "calendar deleted: " + androidCalendar.getCalendarDisplayName());
 				androidCalendar.deleteAndroidCalendar();
 			}
 		}
@@ -178,20 +114,13 @@ public class CalendarList {
 		return Result;
 	}
 	
-	public void addCalendar(Calendar item) {
+	public void addCalendar(DavCalendar item) {
 		item.setAccount(this.mAccount);
 		item.setProvider(this.mProvider);
 		this.mList.add(item);
 	}
-	public java.util.ArrayList<Calendar> getCalendarList() {
+	public java.util.ArrayList<DavCalendar> getCalendarList() {
 		return this.mList;
-	}
-	
-	private static Uri asSyncAdapter(Uri uri, String account, String accountType) {
-	    return uri.buildUpon()
-	        .appendQueryParameter(android.provider.CalendarContract.CALLER_IS_SYNCADAPTER,"true")
-	        .appendQueryParameter(Calendars.ACCOUNT_NAME, account)
-	        .appendQueryParameter(Calendars.ACCOUNT_TYPE, accountType).build();
 	}
 	
 	public void setAccount(Account account) {
