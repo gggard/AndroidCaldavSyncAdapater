@@ -41,6 +41,8 @@ import android.animation.Animator;
 import android.animation.AnimatorListenerAdapter;
 import android.annotation.TargetApi;
 import android.app.Activity;
+import android.content.Context;
+import android.content.pm.PackageManager.NameNotFoundException;
 import android.os.AsyncTask;
 import android.os.Build;
 import android.os.Bundle;
@@ -76,6 +78,7 @@ public class AuthenticatorActivity extends Activity {
 	// Values for email and password at the time of the login attempt.
 	private String mUser;
 	private String mPassword;
+	private Context mContext;
 
 	// UI references.
 	private EditText mUserView;
@@ -106,6 +109,8 @@ public class AuthenticatorActivity extends Activity {
 		mUser = getIntent().getStringExtra(EXTRA_EMAIL);
 		mUserView = (EditText) findViewById(R.id.user);
 		mUserView.setText(mUser);
+		
+		mContext = getBaseContext();
 
 		mPasswordView = (EditText) findViewById(R.id.password);
 		mPasswordView
@@ -266,6 +271,14 @@ public class AuthenticatorActivity extends Activity {
 			
 			try {
 				CaldavFacade facade = new CaldavFacade(mUser, mPassword, mURL);
+				String version = "";
+				try {
+					version = mContext.getPackageManager().getPackageInfo(mContext.getPackageName(), 0).versionName;
+				} catch (NameNotFoundException e) {
+					version = "unknown";
+					e.printStackTrace();
+				}
+				facade.setVersion(version);
 				result = facade.testConnection();
 				Log.i(TAG, "testConnection status="+result);
 			} catch (HttpHostConnectException e) {

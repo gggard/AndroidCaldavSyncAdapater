@@ -255,7 +255,8 @@ public class DavCalendar {
 	 * this calendar should be a server calendar as it is searched for.
 	 * if the calendar is not found, it will be created.
 	 * @param androidCalList the list of android calendars
-	 * @return the found android calendar
+	 * @param context
+	 * @return the found android calendar or null of fails
 	 * @throws RemoteException
 	 */
 	public Uri checkAndroidCalendarList(CalendarList androidCalList, android.content.Context context) throws RemoteException {
@@ -271,8 +272,10 @@ public class DavCalendar {
 
 		if (!isCalendarExist) {
 			DavCalendar newCal = this.createNewAndroidCalendar(this, androidCalList.getCalendarList().size(), context);
-			androidCalList.addCalendar(newCal);
-			androidCalendarUri = newCal.getAndroidCalendarUri();
+			if (newCal != null) {
+				androidCalList.addCalendar(newCal);
+				androidCalendarUri = newCal.getAndroidCalendarUri();
+			}
 		} else {
 			androidCalendarUri = androidCalendar.getAndroidCalendarUri();
 			if (!this.getCalendarColorAsString().equals("")) {
@@ -313,6 +316,13 @@ public class DavCalendar {
 		return Result;
 	}
 	
+	/**
+	 * creates a new androidCalendar
+	 * @param serverCalendar
+	 * @param index
+	 * @param context
+	 * @return the new androidCalendar or null if fails
+	 */
 	private DavCalendar createNewAndroidCalendar(DavCalendar serverCalendar, int index, android.content.Context context) {
 		Uri newUri = null;
 		DavCalendar Result = null;

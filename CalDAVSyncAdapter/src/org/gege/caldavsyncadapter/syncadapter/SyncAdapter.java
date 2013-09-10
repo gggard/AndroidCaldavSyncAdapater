@@ -117,7 +117,7 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 	@Override
 	public void onPerformSync(Account account, Bundle extras, String authority,
 			ContentProviderClient provider, SyncResult syncResult) {
-		
+		boolean bolError = false;
 		String url = mAccountManager.getUserData(account, Constants.USER_DATA_URL_KEY);
 		Log.v(TAG, "onPerformSync() on " + account.name + " with URL " + url);
 
@@ -139,10 +139,10 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 				Log.i(TAG, "Detected calendar name=" + serverCalendar.getCalendarDisplayName() + " URI=" + serverCalendar.getURI());
 
 				Uri androidCalendarUri = serverCalendar.checkAndroidCalendarList(androidCalList, this.getContext());
-				DavCalendar androidCalendar = androidCalList.getCalendarByAndroidUri(androidCalendarUri);
 
 				// check if the adapter was able to get an existing calendar or create a new one
 				if (androidCalendarUri != null) {
+					DavCalendar androidCalendar = androidCalList.getCalendarByAndroidUri(androidCalendarUri);
 					
 					//if ((FORCE_SYNCHRONIZE) || (androidCalendar.getcTag() == null) || (!androidCalendar.getcTag().equals(serverCalendar.getcTag()))) {
 					if ((androidCalendar.getcTag() == null) || (!androidCalendar.getcTag().equals(serverCalendar.getcTag()))) {
@@ -176,11 +176,14 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 					Log.e(TAG, "failed to get an existing or create a new calendar");
 					syncResult.stats.numIoExceptions += 1;
 					NotificationsHelper.signalSyncErrors(this.getContext(), "Caldav sync error (provider failed)", "the provider failed to get an existing or create a new calendar");
+					bolError = true;
 				}
 			}
 			
-			// check whether a calendar is not synced -> delete it at android
-			androidCalList.deleteCalendarOnClientSideOnly(this.getContext());
+			if (!bolError) {
+				// check whether a calendar is not synced -> delete it at android
+				androidCalList.deleteCalendarOnClientSideOnly(this.getContext());
+			}
 
 		/*} catch (final AuthenticatorException e) {
             syncResult.stats.numParseExceptions++;
@@ -383,7 +386,7 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 					androidEvent.createIcs(newGUID);
 					
 					if (facade.createEvent(URI.create(SyncID), androidEvent.getIcsEvent().toString())) {
-						//bugfix for google calendar
+						//HINT: bugfix for google calendar
 						if (SyncID.contains("@"))
 							SyncID = SyncID.replace("@", "%40");
 						ContentValues values = new ContentValues();
