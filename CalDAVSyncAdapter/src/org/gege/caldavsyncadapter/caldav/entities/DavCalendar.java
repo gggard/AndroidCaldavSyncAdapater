@@ -67,6 +67,8 @@ public class DavCalendar {
 	 */
 	public static String URI = Calendars._SYNC_ID;
 	
+	public static String SERVERURL = Calendars.CAL_SYNC2;
+	
 	private String strCalendarColor = "";
 	
 	private ArrayList<Uri> mNotifyList = new ArrayList<Uri>(); 
@@ -82,6 +84,8 @@ public class DavCalendar {
 	public boolean foundServerSide = false;
 	public boolean foundClientSide = false;
 	public CalendarSource Source = CalendarSource.undefined;
+	
+	public String ServerUrl = "";
 	
 	private ArrayList<CalendarEvent> mCalendarEvents = new ArrayList<CalendarEvent>();
 	
@@ -230,26 +234,31 @@ public class DavCalendar {
 	 * creates an new instance from a cursor
 	 * @param cur must be a cursor from "ContentProviderClient" with Uri Calendars.CONTENT_URI
 	 */
-	public DavCalendar(Account account, ContentProviderClient provider, Cursor cur, CalendarSource source) {
+	public DavCalendar(Account account, ContentProviderClient provider, Cursor cur, CalendarSource source, String serverUrl) {
 		this.mAccount = account;
 		this.mProvider = provider;
 		this.foundClientSide = true;
 		this.Source = source;
+		this.ServerUrl = serverUrl;
 
 		String strSyncID = cur.getString(cur.getColumnIndex(Calendars._SYNC_ID));
 		String strName = cur.getString(cur.getColumnIndex(Calendars.NAME));
 		String strDisplayName = cur.getString(cur.getColumnIndex(Calendars.CALENDAR_DISPLAY_NAME));
 		String strCTAG = cur.getString(cur.getColumnIndex(DavCalendar.CTAG));
+		String strServerUrl = cur.getString(cur.getColumnIndex(DavCalendar.SERVERURL));
 		int intAndroidCalendarId = cur.getInt(cur.getColumnIndex(Calendars._ID));
 
 		this.setCalendarName(strName);
 		this.setCalendarDisplayName(strDisplayName);
 		this.setCTag(strCTAG, false);
 		this.setAndroidCalendarId(intAndroidCalendarId);
-
+		
 		if (strSyncID == null) {
 			this.correctSyncID(strName);
 			strSyncID = strName;
+		}
+		if (strServerUrl == null) {
+			this.correctServerUrl(serverUrl);
 		}
 		URI uri = null;
 		try {
@@ -311,10 +320,27 @@ public class DavCalendar {
 	 */
 	private boolean correctSyncID(String calendarUri) {
 		boolean Result = false;
-		Log.v(TAG, "correcting calendar:" + this.getContentValueAsString(Calendars.CALENDAR_DISPLAY_NAME));
+		Log.v(TAG, "correcting SyncID for calendar:" + this.getContentValueAsString(Calendars.CALENDAR_DISPLAY_NAME));
 			
 		ContentValues mUpdateValues = new ContentValues();
 		mUpdateValues.put(DavCalendar.URI, calendarUri);
+		
+		try {
+			mProvider.update(this.SyncAdapterCalendar(), mUpdateValues, null, null);
+			Result = true;
+		} catch (RemoteException e) {
+			e.printStackTrace();
+		}
+		
+		return Result;
+	}
+	
+	private boolean correctServerUrl(String serverUrl) {
+		boolean Result = false;
+		Log.v(TAG, "correcting ServerUrl for calendar:" + this.getContentValueAsString(Calendars.CALENDAR_DISPLAY_NAME));
+			
+		ContentValues mUpdateValues = new ContentValues();
+		mUpdateValues.put(DavCalendar.SERVERURL, serverUrl);
 		
 		try {
 			mProvider.update(this.SyncAdapterCalendar(), mUpdateValues, null, null);
@@ -339,6 +365,7 @@ public class DavCalendar {
 		
 		final ContentValues contentValues = new ContentValues();
 		contentValues.put(DavCalendar.URI, serverCalendar.getURI().toString());
+		contentValues.put(DavCalendar.SERVERURL, this.ServerUrl);
 
 		contentValues.put(Calendars.VISIBLE, 1);
 		contentValues.put(Calendars.CALENDAR_DISPLAY_NAME, serverCalendar.getCalendarDisplayName());
@@ -382,7 +409,7 @@ public class DavCalendar {
 			
 			if (cur != null) {
 				while (cur.moveToNext()) {
-					Result = new DavCalendar(mAccount, mProvider, cur, this.Source);
+					Result = new DavCalendar(mAccount, mProvider, cur, this.Source, this.ServerUrl);
 					Result.foundServerSide = true;
 				}
 				cur.close();

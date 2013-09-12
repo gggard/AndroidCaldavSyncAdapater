@@ -110,7 +110,7 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 	
 	public SyncAdapter(Context context, boolean autoInitialize) {
 		super(context, autoInitialize);
-		//android.os.Debug.waitForDebugger();
+		android.os.Debug.waitForDebugger();
 		mAccountManager = AccountManager.get(context);
 		try {
 			mVersion = context.getPackageManager().getPackageInfo(context.getPackageName(), 0).versionName;
@@ -130,7 +130,7 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 
 		CalendarList serverCalList;
 		
-		CalendarList androidCalList = new CalendarList(account, provider, CalendarSource.Android);
+		CalendarList androidCalList = new CalendarList(account, provider, CalendarSource.Android, url);
 		androidCalList.readCalendarFromClient();
 		ArrayList<Uri> notifyList = new ArrayList<Uri>();
 

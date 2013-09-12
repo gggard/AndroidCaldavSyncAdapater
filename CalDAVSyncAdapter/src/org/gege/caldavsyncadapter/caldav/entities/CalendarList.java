@@ -27,10 +27,13 @@ public class CalendarList {
 	
 	public CalendarSource Source = CalendarSource.undefined;
 	
-	public CalendarList(Account account, ContentProviderClient provider, CalendarSource source) {
+	public String ServerUrl = "";
+	
+	public CalendarList(Account account, ContentProviderClient provider, CalendarSource source, String serverUrl) {
 		this.mAccount = account;
 		this.mProvider = provider;
 		this.Source = source;
+		this.ServerUrl = serverUrl;
 	}
 	
 /*	public Calendar getCalendarByAndroidCalendarId(int calendarId) {
@@ -76,11 +79,14 @@ public class CalendarList {
 		
 		Uri uri = Calendars.CONTENT_URI;   
 		String selection = "(" + "(" + Calendars.ACCOUNT_NAME +  " = ?) AND " + 
-		                         "(" + Calendars.ACCOUNT_TYPE +  " = ?) AND " + 
+		                         "(" + Calendars.ACCOUNT_TYPE +  " = ?) AND " +
+		                         "((" + DavCalendar.SERVERURL +   " = ?) OR " +
+		                         "(" + DavCalendar.SERVERURL +   " IS NULL)) AND " +
 		                         "(" + Calendars.OWNER_ACCOUNT + " = ?)" +
 		                   ")";
 		String[] selectionArgs = new String[] {	mAccount.name, 
 												mAccount.type,
+												this.ServerUrl,
 												mAccount.name
 											}; 
 
@@ -93,7 +99,7 @@ public class CalendarList {
 		
 		if (cur != null) {
 			while (cur.moveToNext()) {
-				mList.add(new DavCalendar(mAccount, mProvider, cur, this.Source));
+				mList.add(new DavCalendar(mAccount, mProvider, cur, this.Source, this.ServerUrl));
 			}
 			cur.close();
 			Result = true;
@@ -118,6 +124,7 @@ public class CalendarList {
 	public void addCalendar(DavCalendar item) {
 		item.setAccount(this.mAccount);
 		item.setProvider(this.mProvider);
+		item.ServerUrl = this.ServerUrl;
 		this.mList.add(item);
 	}
 	public java.util.ArrayList<DavCalendar> getCalendarList() {

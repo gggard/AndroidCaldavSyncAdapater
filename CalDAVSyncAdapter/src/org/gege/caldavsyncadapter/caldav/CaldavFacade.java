@@ -426,7 +426,7 @@ public class CaldavFacade {
 			IOException, URISyntaxException, ParserConfigurationException,
 			CaldavProtocolException {
 		try {
-			CalendarList Result = new CalendarList(this.mAccount, this.mProvider, CalendarSource.CalDAV);
+			CalendarList Result = new CalendarList(this.mAccount, this.mProvider, CalendarSource.CalDAV, this.url.toString());
 			List<DavCalendar> calendars = new ArrayList<DavCalendar>();
 			
 			calendars = forceGetCalendarsFromUri(context, this.url.toURI());
