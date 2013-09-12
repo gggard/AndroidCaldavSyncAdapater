@@ -110,7 +110,7 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 	
 	public SyncAdapter(Context context, boolean autoInitialize) {
 		super(context, autoInitialize);
-		android.os.Debug.waitForDebugger();
+		//android.os.Debug.waitForDebugger();
 		mAccountManager = AccountManager.get(context);
 		try {
 			mVersion = context.getPackageManager().getPackageInfo(context.getPackageName(), 0).versionName;
