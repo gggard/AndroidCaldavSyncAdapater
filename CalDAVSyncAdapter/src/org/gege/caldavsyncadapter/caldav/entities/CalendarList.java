@@ -1,6 +1,7 @@
 package org.gege.caldavsyncadapter.caldav.entities;
 
 import java.net.URI;
+import java.util.ArrayList;
 
 //import org.gege.caldavsyncadapter.CalendarColors;
 import org.gege.caldavsyncadapter.caldav.entities.DavCalendar.CalendarSource;
@@ -128,5 +129,14 @@ public class CalendarList {
 	}
 	public void setProvider(ContentProviderClient provider) {
 		this.mProvider = provider;
+	}
+	public ArrayList<Uri> getNotifyList() {
+		ArrayList<Uri> Result = new ArrayList<Uri>();
+		
+		for (DavCalendar cal : this.mList) {
+			Result.addAll(cal.getNotifyList());
+		}
+		
+		return Result;
 	}
 }

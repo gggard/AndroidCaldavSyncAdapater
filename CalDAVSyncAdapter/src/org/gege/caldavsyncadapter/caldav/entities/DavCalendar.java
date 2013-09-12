@@ -21,15 +21,21 @@
 
 package org.gege.caldavsyncadapter.caldav.entities;
 
+import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.ArrayList;
 
+import javax.xml.parsers.ParserConfigurationException;
+
+import org.apache.http.client.ClientProtocolException;
 import org.gege.caldavsyncadapter.CalendarColors;
 import org.gege.caldavsyncadapter.Event;
 import org.gege.caldavsyncadapter.android.entities.AndroidEvent;
 import org.gege.caldavsyncadapter.caldav.CaldavFacade;
 import org.gege.caldavsyncadapter.syncadapter.SyncAdapter;
 import org.gege.caldavsyncadapter.syncadapter.notifications.NotificationsHelper;
+import org.xml.sax.SAXException;
 
 import android.accounts.Account;
 import android.content.ContentProviderClient;
@@ -62,6 +68,8 @@ public class DavCalendar {
 	public static String URI = Calendars._SYNC_ID;
 	
 	private String strCalendarColor = "";
+	
+	private ArrayList<Uri> mNotifyList = new ArrayList<Uri>(); 
 
 	/**
 	 * the event transformed into ContentValues
@@ -74,6 +82,8 @@ public class DavCalendar {
 	public boolean foundServerSide = false;
 	public boolean foundClientSide = false;
 	public CalendarSource Source = CalendarSource.undefined;
+	
+	private ArrayList<CalendarEvent> mCalendarEvents = new ArrayList<CalendarEvent>();
 	
 	/**
 	 * example: http://caldav.example.com/calendarserver.php/calendars/username/calendarname
@@ -357,7 +367,6 @@ public class DavCalendar {
 		// the adapter would try to create a new calendar but the provider fails again to create a new calendar.
 		if (newUri != null) {
 			long newCalendarId = ContentUris.parseId(newUri);
-			Log.i(TAG, "New calendar created : URI=" + newUri + " id=" + newCalendarId);
 
 			Cursor cur = null;
 			Uri uri = Calendars.CONTENT_URI;   
@@ -380,7 +389,9 @@ public class DavCalendar {
 				//if (Result != null)
 				//	this.mList.add(Result);
 			}
+			Log.i(TAG, "New calendar created : URI=" + Result.getAndroidCalendarUri());
 			NotificationsHelper.signalSyncErrors(context, "CalDAV Sync Adapter", "new calendar found: " + Result.getCalendarDisplayName());
+			mNotifyList.add(Result.getAndroidCalendarUri());
 		}
 		
 		return Result;
@@ -401,6 +412,7 @@ public class DavCalendar {
 		try {
 			CountDeleted = mProvider.delete(this.SyncAdapter(), mSelectionClause, mSelectionArgs);
 			Log.i(TAG,"Calendar deleted: " + String.valueOf(calendarId));
+			this.mNotifyList.add(this.getAndroidCalendarUri());
 			Result = true;
 		} catch (RemoteException e) {
 			e.printStackTrace();
@@ -547,4 +559,39 @@ public class DavCalendar {
 		
 		return Result;
 	}
+	
+	public ArrayList<Uri> getNotifyList() {
+		return this.mNotifyList;
+	}
+
+	public ArrayList<CalendarEvent> getCalendarEvents() {
+		return this.mCalendarEvents;
+	}
+	
+	public boolean readCalendarEvents(CaldavFacade facade) {
+		boolean Result = false;
+		
+		try {
+			this.mCalendarEvents = facade.getCalendarEvents(this);
+			Result = true;
+		} catch (ClientProtocolException e) {
+			e.printStackTrace();
+			Result = false;
+		} catch (URISyntaxException e) {
+			e.printStackTrace();
+			Result = false;
+		} catch (IOException e) {
+			e.printStackTrace();
+			Result = false;
+		} catch (ParserConfigurationException e) {
+			e.printStackTrace();
+			Result = false;
+		} catch (SAXException e) {
+			e.printStackTrace();
+			Result = false;
+		}
+		
+		return Result;
+	}
+	
 }

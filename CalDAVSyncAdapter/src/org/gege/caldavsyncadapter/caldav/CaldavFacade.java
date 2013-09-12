@@ -451,11 +451,12 @@ public class CaldavFacade {
 		}
 	}
 
-	public Iterable<CalendarEvent> getCalendarEvents(DavCalendar calendar)
+	//public Iterable<CalendarEvent> getCalendarEvents(DavCalendar calendar)
+	public ArrayList<CalendarEvent> getCalendarEvents(DavCalendar calendar)
 			throws URISyntaxException, ClientProtocolException, IOException,
 			ParserConfigurationException, SAXException {
 
-		List<CalendarEvent> calendarEventList = new ArrayList<CalendarEvent>();
+		ArrayList<CalendarEvent> calendarEventList = new ArrayList<CalendarEvent>();
 
 		String requestBody = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
 				+ "<D:propfind xmlns:D=\"DAV:\">" + "<D:prop>" + "<D:getetag/>"

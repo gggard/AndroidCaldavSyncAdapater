@@ -25,6 +25,7 @@ import java.io.IOException;
 import java.net.URI;
 //import java.net.MalformedURLException;
 import java.net.URISyntaxException;
+import java.util.ArrayList;
 //import java.security.GeneralSecurityException;
 
 import javax.xml.parsers.ParserConfigurationException;
@@ -70,6 +71,11 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 	private static final String TAG = "SyncAdapter";
 	private AccountManager mAccountManager;
 	private String mVersion = "";
+	private int mCountPerformSync = 0;
+	private int mCountSyncCanceled = 0;
+	private int mCountProviderFailed = 0;
+	
+	private int mCountProviderFailedMax = 3;
 //	private Context mContext;
 	
 	
@@ -119,12 +125,14 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 			ContentProviderClient provider, SyncResult syncResult) {
 		boolean bolError = false;
 		String url = mAccountManager.getUserData(account, Constants.USER_DATA_URL_KEY);
-		Log.v(TAG, "onPerformSync() on " + account.name + " with URL " + url);
+		this.mCountPerformSync += 1;
+		Log.v(TAG, "onPerformSync() count:" + String.valueOf(this.mCountPerformSync) + " on " + account.name + " with URL " + url);
 
 		CalendarList serverCalList;
 		
 		CalendarList androidCalList = new CalendarList(account, provider, CalendarSource.Android);
 		androidCalList.readCalendarFromClient();
+		ArrayList<Uri> notifyList = new ArrayList<Uri>();
 
 		try {
 			CaldavFacade facade = new CaldavFacade(account.name, mAccountManager.getPassword(account), url);
@@ -142,21 +150,32 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 
 				// check if the adapter was able to get an existing calendar or create a new one
 				if (androidCalendarUri != null) {
+					// the provider seems to work correct, reset the counter
+					mCountProviderFailed = 0;
 					DavCalendar androidCalendar = androidCalList.getCalendarByAndroidUri(androidCalendarUri);
 					
 					//if ((FORCE_SYNCHRONIZE) || (androidCalendar.getcTag() == null) || (!androidCalendar.getcTag().equals(serverCalendar.getcTag()))) {
 					if ((androidCalendar.getcTag() == null) || (!androidCalendar.getcTag().equals(serverCalendar.getcTag()))) {
 							Log.d(TAG, "CTag has changed, something to synchronise");
-							
-							this.synchroniseEvents(facade, account, provider, androidCalendar, serverCalendar, syncResult.stats);
-							
-							Log.d(TAG, "Updating stored CTag");
-							//serverCalendar.updateAndroidCalendar(androidCalendarUri, Calendar.CTAG, serverCalendar.getcTag());
-							androidCalendar.setCTag(serverCalendar.getcTag(), true);
+							if (serverCalendar.readCalendarEvents(facade)) {
+								this.synchroniseEvents(androidCalendar, serverCalendar, syncResult.stats, notifyList);
+
+								Log.d(TAG, "Updating stored CTag");
+								//serverCalendar.updateAndroidCalendar(androidCalendarUri, Calendar.CTAG, serverCalendar.getcTag());
+								androidCalendar.setCTag(serverCalendar.getcTag(), true);
+							} else {
+								Log.d(TAG, "unable to read events from server calendar");
+							}
 					} else {
 						Log.d(TAG, "CTag has not changed, nothing to do");
 	
-						long CalendarID = ContentUris.parseId(androidCalendarUri);
+						/* this is unnecessary. "SkippedEntries" are:
+						 * Counter for tracking how many entries, either from the server or the local store, 
+						 * were ignored during the sync operation. This could happen if the SyncAdapter detected 
+						 * some unparsable data but decided to skip it and move on rather than failing immediately. 
+						 */
+						
+						/*long CalendarID = ContentUris.parseId(androidCalendarUri);
 						String selection = "(" + Events.CALENDAR_ID + " = ?)";
 						String[] selectionArgs = new String[] {String.valueOf(CalendarID)}; 
 						Cursor countCursor = provider.query(Events.CONTENT_URI, new String[] {"count(*) AS count"},
@@ -167,15 +186,22 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 				        countCursor.moveToFirst();
 				        int count = countCursor.getInt(0);
 				        syncResult.stats.numSkippedEntries += count;
-				        countCursor.close();
+				        countCursor.close();*/
+						
 					}
 					
-					this.checkDirtyAndroidEvents(provider, account, androidCalendarUri, facade, serverCalendar.getURI(), syncResult.stats);
+					this.checkDirtyAndroidEvents(provider, account, androidCalendarUri, facade, serverCalendar.getURI(), syncResult.stats, notifyList);
 				} else {
 					// this happens if the data provider failes to get an existing or create a new calendar
+					mCountProviderFailed += 1;
 					Log.e(TAG, "failed to get an existing or create a new calendar");
 					syncResult.stats.numIoExceptions += 1;
-					NotificationsHelper.signalSyncErrors(this.getContext(), "Caldav sync error (provider failed)", "the provider failed to get an existing or create a new calendar");
+					if (mCountProviderFailed >= mCountProviderFailedMax) {
+						// see issue #96
+						NotificationsHelper.signalSyncErrors(this.getContext(), "Caldav sync error (provider failed)", "are you using CyanogenMod in Incognito Mode?");
+					} else {
+						NotificationsHelper.signalSyncErrors(this.getContext(), "Caldav sync error (provider failed)", "the provider failed to get an existing or create a new calendar");
+					}
 					bolError = true;
 				}
 			}
@@ -184,6 +210,29 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 				// check whether a calendar is not synced -> delete it at android
 				androidCalList.deleteCalendarOnClientSideOnly(this.getContext());
 			}
+			
+			// notify the ContentResolver
+			for (Uri uri : androidCalList.getNotifyList()) {
+				this.getContext().getContentResolver().notifyChange(uri, null);
+			}
+			for (Uri uri : serverCalList.getNotifyList()) {
+				this.getContext().getContentResolver().notifyChange(uri, null);
+			}
+			for (Uri uri : notifyList) {
+				this.getContext().getContentResolver().notifyChange(uri, null);
+			}
+			
+			//Log.i(TAG,"Statistiks for Calendar: " + serverCalendar.getURI().toString());
+			//Log.i(TAG,"Statistiks for AndroidCalendar: " + androidCalendar.getAndroidCalendarUri().toString());
+			Log.i(TAG,"Entries:                       " + String.valueOf(syncResult.stats.numEntries));
+			Log.i(TAG,"Rows inserted:                 " + String.valueOf(syncResult.stats.numInserts));
+			Log.i(TAG,"Rows updated:                  " + String.valueOf(syncResult.stats.numUpdates));
+			Log.i(TAG,"Rows deleted:                  " + String.valueOf(syncResult.stats.numDeletes));
+			Log.i(TAG,"Rows skipped:                  " + String.valueOf(syncResult.stats.numSkippedEntries));
+			Log.i(TAG,"Io Exceptions:                 " + String.valueOf(syncResult.stats.numIoExceptions));
+			Log.i(TAG,"Parse Exceptions:              " + String.valueOf(syncResult.stats.numParseExceptions));
+			Log.i(TAG,"Auth Exceptions:               " + String.valueOf(syncResult.stats.numAuthExceptions));
+			Log.i(TAG,"Conflict Detected Exceptions:  " + String.valueOf(syncResult.stats.numConflictDetectedExceptions));
 
 		/*} catch (final AuthenticatorException e) {
             syncResult.stats.numParseExceptions++;
@@ -216,16 +265,20 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 		}
 	}
 
+	public void onSyncCanceled () {
+		//TODO: implement SyncCanceled
+		this.mCountSyncCanceled += 1;
+		Log.v(TAG, "onSyncCanceled() count:" + String.valueOf(this.mCountSyncCanceled));
+	}
+
 	
 	/**
 	 * both calender event and android event have been found.
 	 * server wins always at the moment.
-	 * @param facade
-	 * @param account
-	 * @param provider
 	 * @param androidCalendar
 	 * @param serverCalendar
 	 * @param stats
+	 * @param notifyList
 	 * @throws ClientProtocolException
 	 * @throws URISyntaxException
 	 * @throws IOException
@@ -239,14 +292,16 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 	 * @see SyncAdapter#untagAndroidEvents(ContentProviderClient, Account, Uri)
 	 * @see SyncAdapter#deleteUntaggedEvents(ContentProviderClient, Account, Uri)
 	 */
-	private void synchroniseEvents(CaldavFacade facade, Account account,
-			ContentProviderClient provider, DavCalendar androidCalendar, DavCalendar serverCalendar, SyncStats stats) throws ClientProtocolException, URISyntaxException, IOException, ParserConfigurationException, SAXException, RemoteException, CaldavProtocolException, ParserException {
+	private void synchroniseEvents(
+				DavCalendar androidCalendar, 
+				DavCalendar serverCalendar, 
+				SyncStats stats, 
+				ArrayList<Uri> notifyList
+			) throws ClientProtocolException, URISyntaxException, IOException, ParserConfigurationException, SAXException, RemoteException, CaldavProtocolException, ParserException {
 		
 		/*if (DROP_CALENDAR_EVENTS) {
 			dropAllEvents(account, provider, androidCalendar.getAndroidCalendarUri());
 		}*/
-		
-		Iterable<CalendarEvent> eventList = facade.getCalendarEvents(serverCalendar);
 		
 		int rowInsert = 0;
 		int rowUpdate = 0;
@@ -255,8 +310,7 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 		int rowUntag = 0;
 		int rowSkip = 0;
 		
-		for (CalendarEvent calendarEvent : eventList) {
-			
+		for (CalendarEvent calendarEvent : serverCalendar.getCalendarEvents()) {
 			try {
 				AndroidEvent androidEvent = calendarEvent.getAndroidEvent(androidCalendar);
 				
@@ -267,6 +321,7 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 					if (calendarEvent.createAndroidEvent(androidCalendar)) {
 						rowInsert += 1;
 						androidEvent = calendarEvent.getAndroidEvent(androidCalendar);
+						notifyList.add(androidEvent.getUri());
 					} else {
 						rowSkip += 1;
 					}
@@ -278,8 +333,12 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 					Log.d(TAG, "Event compare: " + androidETag + " <> " + calendarEvent.getETag().toString());
 					if ((androidEvent.getETag() == null) || (!androidETag.equals(calendarEvent.getETag()))) {
 						/* the android event is getting updated */
-						if (calendarEvent.updateAndroidEvent(androidEvent))
+						if (calendarEvent.updateAndroidEvent(androidEvent)) {
 							rowUpdate += 1;
+							notifyList.add(androidEvent.getUri());
+						} else {
+							rowSkip += 1;
+						}
 					}
 				}
 				if (androidEvent != null)
@@ -305,12 +364,12 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 		rowDelete = androidCalendar.deleteUntaggedEvents();
 		rowUntag = androidCalendar.untagAndroidEvents();
 
-		Log.i(TAG,"Statistiks for Calendar: " + serverCalendar.getURI().toString());
+		/*Log.i(TAG,"Statistiks for Calendar: " + serverCalendar.getURI().toString());
 		Log.i(TAG,"Statistiks for AndroidCalendar: " + androidCalendar.getAndroidCalendarUri().toString());
 		Log.i(TAG,"Rows inserted: " + String.valueOf(rowInsert));
 		Log.i(TAG,"Rows updated:  " + String.valueOf(rowUpdate));
 		Log.i(TAG,"Rows deleted:  " + String.valueOf(rowDelete));
-		Log.i(TAG,"Rows skipped:  " + String.valueOf(rowSkip));
+		Log.i(TAG,"Rows skipped:  " + String.valueOf(rowSkip));*/
 		Log.i(TAG,"Rows tagged:   " + String.valueOf(rowTag));
 		Log.i(TAG,"Rows untagged: " + String.valueOf(rowUntag));
 		
@@ -329,9 +388,21 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 	 * @param provider
 	 * @param account
 	 * @param calendarUri
+	 * @param facade
+	 * @param caldavCalendarUri
+	 * @param stats
+	 * @param notifyList
 	 * @return count of dirty events
 	 */
-	private int checkDirtyAndroidEvents(ContentProviderClient provider, Account account, Uri calendarUri, CaldavFacade facade, URI caldavCalendarUri, SyncStats stats) {
+	private int checkDirtyAndroidEvents(
+				ContentProviderClient provider, 
+				Account account, 
+				Uri calendarUri, 
+				CaldavFacade facade, 
+				URI caldavCalendarUri, 
+				SyncStats stats, 
+				ArrayList<Uri> notifyList
+			) {
 		Cursor curEvent = null;
 		Cursor curAttendee = null;
 		Cursor curReminder = null;
@@ -397,8 +468,10 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 						values.put(Event.RAWDATA, androidEvent.getIcsEvent().toString());
 						
 						int rowCount = provider.update(asSyncAdapter(androidEvent.getUri(), account.name, account.type), values, null, null);
-						if (rowCount == 1)
+						if (rowCount == 1) {
 							rowInsert += 1;
+							notifyList.add(androidEvent.getUri());
+						}
 					}
 				} else if (Deleted) {
 					// deleted Android event
@@ -408,8 +481,10 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 						
 						int countDeleted = provider.delete(asSyncAdapter(Events.CONTENT_URI, account.name, account.type), mSelectionClause, mSelectionArgs);	
 						
-						if (countDeleted == 1)
+						if (countDeleted == 1) {
 							rowDelete += 1;
+							notifyList.add(androidEvent.getUri());
+						}
 					}
 				} else {
 					//update the android event to the server
@@ -434,8 +509,10 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 							androidEvent.ContentValues.put(Event.RAWDATA, androidEvent.getIcsEvent().toString());
 							int RowCount = provider.update(asSyncAdapter(androidEvent.getUri(), account.name, account.type), androidEvent.ContentValues, null, null);
 			
-							if (RowCount == 1)
+							if (RowCount == 1) {
 								rowUpdate += 1;
+								notifyList.add(androidEvent.getUri());
+							}
 						} else {
 							rowDirty += 1;
 						}
@@ -446,12 +523,12 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 			}
 			curEvent.close();
 
-			if ((rowInsert > 0) || (rowUpdate > 0) || (rowDelete > 0) || (rowDirty > 0)) {
+			/*if ((rowInsert > 0) || (rowUpdate > 0) || (rowDelete > 0) || (rowDirty > 0)) {
 				Log.i(TAG,"Android Rows inserted: " + String.valueOf(rowInsert));
 				Log.i(TAG,"Android Rows updated:  " + String.valueOf(rowUpdate));
 				Log.i(TAG,"Android Rows deleted:  " + String.valueOf(rowDelete));
 				Log.i(TAG,"Android Rows dirty:    " + String.valueOf(rowDirty));
-			}
+			}*/
 			
 			stats.numInserts += rowInsert;
 			stats.numUpdates += rowUpdate;
