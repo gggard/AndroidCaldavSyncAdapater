@@ -314,9 +314,9 @@ public class DavCalendar {
 	}
 	
 	/**
-	 * the calendar Uri was stored as calendar Name. this function updates the URI (_SYNC_ID)
+	 * COMPAT: the calendar Uri was stored as calendar Name. this function updates the URI (_SYNC_ID)
 	 * @param calendarUri the real calendarUri
-	 * @return success of this function 
+	 * @return success of this function
 	 */
 	private boolean correctSyncID(String calendarUri) {
 		boolean Result = false;
@@ -335,6 +335,11 @@ public class DavCalendar {
 		return Result;
 	}
 	
+	/**
+	 * COMPAT: the serverurl (CAL_SYNC2) was not sored within a calendar. this fixes it. (see #98)
+	 * @param serverUrl the current serverurl
+	 * @return success of this function
+	 */
 	private boolean correctServerUrl(String serverUrl) {
 		boolean Result = false;
 		Log.v(TAG, "correcting ServerUrl for calendar:" + this.getContentValueAsString(Calendars.CALENDAR_DISPLAY_NAME));

@@ -77,7 +77,13 @@ public class CalendarList {
 		boolean Result = false;
 		Cursor cur = null;
 		
-		Uri uri = Calendars.CONTENT_URI;   
+		Uri uri = Calendars.CONTENT_URI;
+		
+		/* COMPAT: in the past, the serverurl was not stored within a calendar. (see #98)
+		 * so there was no chance to see which calendars belongs to a named account.
+		 * username + serverurl have to be unique
+		 * ((DavCalendar.SERVERURL = ?) OR (DavCalendar.SERVERURL IS NULL))
+		 */
 		String selection = "(" + "(" + Calendars.ACCOUNT_NAME +  " = ?) AND " + 
 		                         "(" + Calendars.ACCOUNT_TYPE +  " = ?) AND " +
 		                         "((" + DavCalendar.SERVERURL +   " = ?) OR " +
