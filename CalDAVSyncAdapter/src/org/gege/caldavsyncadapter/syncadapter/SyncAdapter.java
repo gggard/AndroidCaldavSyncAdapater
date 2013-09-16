@@ -462,7 +462,20 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 							SyncID = SyncID.replace("@", "%40");
 						ContentValues values = new ContentValues();
 						values.put(Events._SYNC_ID, SyncID);
-						values.put(Event.ETAG, facade.getLastETag());
+
+						//google doesn't send the etag after creation
+						String LastETag = facade.getLastETag();
+						if (!LastETag.equals("")) {
+							values.put(Event.ETAG, LastETag);
+						} else {
+							//so get the etag with a new REPORT
+							CalendarEvent calendarEvent = new CalendarEvent(account, provider);
+							calendarEvent.calendarURL = caldavCalendarUri.toURL();
+							URI SyncURI = new URI(SyncID);
+							calendarEvent.setUri(SyncURI);
+							CaldavFacade.getEvent(calendarEvent);
+							values.put(Event.ETAG, calendarEvent.getETag());
+						}
 						values.put(Event.UID, newGUID);
 						values.put(Events.DIRTY, 0);
 						values.put(Event.RAWDATA, androidEvent.getIcsEvent().toString());
@@ -490,10 +503,11 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 					//update the android event to the server
 					String uid = androidEvent.getUID();
 					if ((uid == null) || (uid.equals(""))) {
-						//this is needed because in the past, the UID was not stored in the android event
+						//COMPAT: this is needed because in the past, the UID was not stored in the android event
 						CalendarEvent calendarEvent = new CalendarEvent(account, provider);
 						URI syncURI = new URI(SyncID);
 						calendarEvent.setUri(syncURI);
+						calendarEvent.calendarURL = caldavCalendarUri.toURL();
 						if (calendarEvent.fetchBody()) {
 							calendarEvent.readContentValues();
 							uid = calendarEvent.getUID();
@@ -506,6 +520,20 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 							selection = "(" + Events._ID + "= ?)";
 							selectionArgs = new String[] {EventID.toString()};
 							androidEvent.ContentValues.put(Events.DIRTY, 0);
+
+							//google doesn't send the etag after update
+							String LastETag = facade.getLastETag();
+							if (!LastETag.equals("")) {
+								androidEvent.ContentValues.put(Event.ETAG, LastETag);
+							} else {
+								//so get the etag with a new REPORT
+								CalendarEvent calendarEvent = new CalendarEvent(account, provider);
+								calendarEvent.calendarURL = caldavCalendarUri.toURL();
+								URI SyncURI = new URI(SyncID);
+								calendarEvent.setUri(SyncURI);
+								CaldavFacade.getEvent(calendarEvent);
+								androidEvent.ContentValues.put(Event.ETAG, calendarEvent.getETag());
+							}
 							androidEvent.ContentValues.put(Event.RAWDATA, androidEvent.getIcsEvent().toString());
 							int RowCount = provider.update(asSyncAdapter(androidEvent.getUri(), account.name, account.type), androidEvent.ContentValues, null, null);
 			

@@ -82,6 +82,7 @@ import org.gege.caldavsyncadapter.caldav.entities.DavCalendar.CalendarSource;
 import org.gege.caldavsyncadapter.caldav.entities.CalendarEvent;
 import org.gege.caldavsyncadapter.caldav.entities.CalendarList;
 import org.gege.caldavsyncadapter.caldav.http.HttpPropFind;
+import org.gege.caldavsyncadapter.caldav.http.HttpReport;
 import org.gege.caldavsyncadapter.caldav.xml.CalendarHomeHandler;
 import org.gege.caldavsyncadapter.caldav.xml.CalendarsHandler;
 import org.gege.caldavsyncadapter.caldav.xml.ServerInfoHandler;
@@ -101,8 +102,10 @@ import android.content.Context;
 import android.util.Log;
 
 public class CaldavFacade {
-
 	private static final String TAG = "CaldavFacade";
+
+	private final static String XML_VERSION = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n";
+
 	private String USER_AGENT = "CalDAV Sync Adapter (Android) https://github.com/gggard/AndroidCaldavSyncAdapater";
 	private String VERSION = ""; 
 
@@ -216,8 +219,6 @@ public class CaldavFacade {
 	public enum TestConnectionResult {
 		WRONG_CREDENTIAL, WRONG_URL, WRONG_SERVER_STATUS, WRONG_ANSWER, SUCCESS
 	}
-
-	private final static String XML_VERSION = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n";
 
 	/**
 	 * TODO: testConnection should return only an instance of
@@ -512,6 +513,7 @@ public class CaldavFacade {
 				continue; // not an event
 
 			calendarEvent.setETag(node.getTextContent().trim());
+			calendarEvent.calendarURL = this.url;
 
 			node = node.getParentNode(); // prop
 			node = node.getParentNode(); // propstat
@@ -609,7 +611,6 @@ public class CaldavFacade {
 		HttpPut request = new HttpPut();
 		request.setURI(uri);
 		request.setHeader("Host", targetHost.getHostName());
-		//request.setHeader("Depth", Integer.toString(depth));
 		//request.setHeader("Content-Type", "application/xml;charset=\"UTF-8\"");
 		request.setHeader("Content-Type", "text/calendar; charset=UTF-8");
 		try {
@@ -621,7 +622,22 @@ public class CaldavFacade {
 		return request;
 	}
 	
-	public static void fetchEventBody(CalendarEvent calendarEvent)
+	private static HttpReport createReportRequest(URI uri, String data, int depth) {
+		HttpReport request = new HttpReport();
+		request.setURI(uri);
+		request.setHeader("Host", targetHost.getHostName());
+		request.setHeader("Depth", Integer.toString(depth));
+		//request.setHeader("Content-Type", "application/xml;charset=\"UTF-8\"");
+		request.setHeader("Content-Type", "text/xml;charset=\"UTF-8\"");
+		try {
+			request.setEntity(new StringEntity(data));
+		} catch (UnsupportedEncodingException e) {
+			throw new AssertionError("UTF-8 is unknown");
+		}
+		return request;
+	}
+	
+	public static void fetchEvent_old(CalendarEvent calendarEvent)
 			throws ClientProtocolException, IOException {
 		HttpGet request = null;
 
@@ -649,6 +665,49 @@ public class CaldavFacade {
 				+ " body= " + body);
 	}
 	
+	public static boolean getEvent(CalendarEvent calendarEvent) throws ClientProtocolException, IOException {
+		boolean Result = false;
+		HttpReport request = null;
+
+		//HINT: bugfix for google calendar
+		String data = XML_VERSION +
+				"<C:calendar-multiget xmlns:D=\"DAV:\" xmlns:C=\"urn:ietf:params:xml:ns:caldav\">" +
+					"<D:prop>" +
+						"<D:getetag/>" +
+						"<C:calendar-data/>" +
+					"</D:prop>" +
+					"<D:href>" + calendarEvent.getUri().getPath().replace("@", "%40") + "</D:href>" +
+				"</C:calendar-multiget>";
+
+		URI calendarURI = null;
+		try {
+			calendarURI = calendarEvent.calendarURL.toURI();
+		} catch (URISyntaxException e) {
+			e.printStackTrace();
+		}
+		//request = createReportRequest(calendarEvent.getUri(), data, 1);
+		request = createReportRequest(calendarURI, data, 1);
+
+		HttpResponse response = httpClient.execute(targetHost, request);
+
+		BufferedReader reader = new BufferedReader(new InputStreamReader(
+				response.getEntity().getContent(), "UTF-8"));
+
+		String line;
+		String body = "";
+		do {
+			line = reader.readLine();
+			if (line != null)
+				body += line + "\n";
+		} while (line != null);
+
+		if (calendarEvent.setICSasMultiStatus(body))
+			Result = true;
+
+		return Result;
+	}
+	
+		
 	/**
 	 * sends a update event request to the server 
 	 * @param uri the full URI of the event on server side. example: http://caldav.example.com/principal/user/calendar/e6be67c6-eff0-44f8-a1a0-6c2cb1029944-caldavsyncadapter.ics
@@ -715,22 +774,6 @@ public class CaldavFacade {
 	}
 	
 	/**
-	 * returns the ETAG send by the last server response.
-	 * @return the ETAG
-	 */
-	public String getLastETag() {
-		return lastETag;
-	}
-	
-	/**
-	 * returns the DAV-Options send by the last server response.
-	 * @return the DAV-Options
-	 */
-	public String getLastDav() {
-		return lastDav;
-	}
-	
-	/**
 	 * sends a delete event request to the server
 	 * @param calendarEventUri  the full URI of the event on server side. example: http://caldav.example.com/principal/user/calendar/e6be67c6-eff0-44f8-a1a0-6c2cb1029944-caldavsyncadapter.ics
 	 * @param ETag the ETAG of this event is send within the "If-Match" Parameter to tell the server only to delete this version
@@ -764,7 +807,23 @@ public class CaldavFacade {
 		
 		return Result;
 	}
-
+	
+	/**
+	 * returns the ETAG send by the last server response.
+	 * @return the ETAG
+	 */
+	public String getLastETag() {
+		return lastETag;
+	}
+	
+	/**
+	 * returns the DAV-Options send by the last server response.
+	 * @return the DAV-Options
+	 */
+	public String getLastDav() {
+		return lastDav;
+	}
+	
 	public void setVersion(String version) {
 		VERSION = version;
 		((AbstractHttpClient) httpClient).getParams().setParameter(CoreProtocolPNames.USER_AGENT, this.USER_AGENT + " Version:" + VERSION);

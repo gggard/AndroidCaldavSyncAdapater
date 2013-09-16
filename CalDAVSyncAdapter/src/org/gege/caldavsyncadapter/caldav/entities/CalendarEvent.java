@@ -25,8 +25,15 @@ import java.io.IOException;
 import java.io.StringReader;
 import java.io.UnsupportedEncodingException;
 import java.net.URI;
+import java.net.URL;
 import java.net.URLDecoder;
 import java.text.ParseException;
+import java.util.ArrayList;
+
+import javax.xml.parsers.ParserConfigurationException;
+import javax.xml.parsers.SAXParser;
+import javax.xml.parsers.SAXParserFactory;
+
 import net.fortuna.ical4j.data.CalendarBuilder;
 import net.fortuna.ical4j.data.ParserException;
 import net.fortuna.ical4j.model.Calendar;
@@ -54,7 +61,15 @@ import org.gege.caldavsyncadapter.Event;
 import org.gege.caldavsyncadapter.android.entities.AndroidEvent;
 import org.gege.caldavsyncadapter.caldav.CaldavFacade;
 import org.gege.caldavsyncadapter.caldav.CaldavProtocolException;
+import org.gege.caldavsyncadapter.caldav.xml.MultiStatusHandler;
+import org.gege.caldavsyncadapter.caldav.xml.sax.MultiStatus;
+import org.gege.caldavsyncadapter.caldav.xml.sax.Prop;
+import org.gege.caldavsyncadapter.caldav.xml.sax.PropStat;
+import org.gege.caldavsyncadapter.caldav.xml.sax.Response;
 import org.gege.caldavsyncadapter.syncadapter.SyncAdapter;
+import org.xml.sax.InputSource;
+import org.xml.sax.SAXException;
+import org.xml.sax.XMLReader;
 
 import android.accounts.Account;
 import android.content.ContentProviderClient;
@@ -84,6 +99,7 @@ public class CalendarEvent extends org.gege.caldavsyncadapter.Event {
 	private String eTag;
 	private URI muri;
 	private Uri mAndroidEventUri;
+	public URL calendarURL;
 	
 	private boolean mAllDay = false;
 	private VTimeZone mVTimeZone = null; 
@@ -118,6 +134,51 @@ public class CalendarEvent extends org.gege.caldavsyncadapter.Event {
 
 	public void setICSasString(String ics) {
 		this.stringIcs = ics;
+	}
+	
+	public boolean setICSasMultiStatus(String stringMultiStatus) {
+		boolean Result = false;
+		String ics = "";
+		MultiStatus multistatus;
+		ArrayList<Response> responselist;
+		Response response;
+		PropStat propstat;
+		Prop prop;
+		try {
+			SAXParserFactory factory = SAXParserFactory.newInstance();
+			SAXParser parser = factory.newSAXParser();
+			XMLReader reader = parser.getXMLReader();
+			MultiStatusHandler contentHandler = new MultiStatusHandler(); 
+			reader.setContentHandler(contentHandler);
+			reader.parse(new InputSource(new StringReader(stringMultiStatus)));
+			
+			multistatus = contentHandler.mMultiStatus;
+			if (multistatus != null) {
+				responselist = multistatus.ResponseList;
+				if (responselist.size() == 1) {
+					response = responselist.get(0);
+					//HINT: bugfix for google calendar
+					if (response.href.equals(this.getUri().getPath().replace("@", "%40"))) {
+						propstat = response.propstat;
+						if (propstat.status.contains("200 OK")) {
+							prop = propstat.prop;
+							ics = prop.calendardata;
+							this.setETag(prop.getetag);
+							Result = true;
+						}
+					}
+				}
+			}
+		} catch (ParserConfigurationException e1) {
+			e1.printStackTrace();
+		} catch (SAXException e1) {
+			e1.printStackTrace();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		
+		this.stringIcs = ics;
+		return Result;
 	}
 	
 	/**
@@ -196,7 +257,9 @@ public class CalendarEvent extends org.gege.caldavsyncadapter.Event {
 	public boolean fetchBody() throws ClientProtocolException, IOException, CaldavProtocolException, ParserException {
 		boolean Error = false;
 		
-		CaldavFacade.fetchEventBody(this);
+		//replaced fetchEvent() with getEvent()
+		//CaldavFacade.fetchEvent(this);
+		CaldavFacade.getEvent(this);
 		
 		boolean Parse = this.parseIcs();
 		if (!Parse)
