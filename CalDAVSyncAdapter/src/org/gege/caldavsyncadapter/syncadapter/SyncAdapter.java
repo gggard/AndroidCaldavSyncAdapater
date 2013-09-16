@@ -464,10 +464,11 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 						values.put(Events._SYNC_ID, SyncID);
 
 						//google doesn't send the etag after creation
-						String LastETag = facade.getLastETag();
-						if (!LastETag.equals("")) {
-							values.put(Event.ETAG, LastETag);
-						} else {
+						//HINT: my SabreDAV send always the same etag after putting a new event
+						//String LastETag = facade.getLastETag();
+						//if (!LastETag.equals("")) {
+						//	values.put(Event.ETAG, LastETag);
+						//} else {
 							//so get the etag with a new REPORT
 							CalendarEvent calendarEvent = new CalendarEvent(account, provider);
 							calendarEvent.calendarURL = caldavCalendarUri.toURL();
@@ -475,7 +476,7 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 							calendarEvent.setUri(SyncURI);
 							CaldavFacade.getEvent(calendarEvent);
 							values.put(Event.ETAG, calendarEvent.getETag());
-						}
+						//}
 						values.put(Event.UID, newGUID);
 						values.put(Events.DIRTY, 0);
 						values.put(Event.RAWDATA, androidEvent.getIcsEvent().toString());
