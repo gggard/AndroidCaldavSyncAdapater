@@ -34,9 +34,9 @@ import net.fortuna.ical4j.data.ParserException;
 
 import org.apache.http.ParseException;
 import org.apache.http.client.ClientProtocolException;
-import org.gege.caldavsyncadapter.Constants;
 import org.gege.caldavsyncadapter.Event;
 import org.gege.caldavsyncadapter.android.entities.AndroidEvent;
+import org.gege.caldavsyncadapter.authenticator.AuthenticatorActivity;
 import org.gege.caldavsyncadapter.caldav.CaldavFacade;
 import org.gege.caldavsyncadapter.caldav.CaldavProtocolException;
 import org.gege.caldavsyncadapter.caldav.entities.DavCalendar;
@@ -124,7 +124,8 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 	public void onPerformSync(Account account, Bundle extras, String authority,
 			ContentProviderClient provider, SyncResult syncResult) {
 		boolean bolError = false;
-		String url = mAccountManager.getUserData(account, Constants.USER_DATA_URL_KEY);
+		
+		String url = mAccountManager.getUserData(account, AuthenticatorActivity.USER_DATA_URL_KEY);
 		this.mCountPerformSync += 1;
 		Log.v(TAG, "onPerformSync() count:" + String.valueOf(this.mCountPerformSync) + " on " + account.name + " with URL " + url);
 
@@ -135,7 +136,14 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 		ArrayList<Uri> notifyList = new ArrayList<Uri>();
 
 		try {
-			CaldavFacade facade = new CaldavFacade(account.name, mAccountManager.getPassword(account), url);
+			String Username = "";
+			if (!account.name.contains(AuthenticatorActivity.ACCOUNT_NAME_SPLITTER)) {
+				Username = account.name;
+			} else {
+				Username = mAccountManager.getUserData(account, AuthenticatorActivity.USER_DATA_USERNAME);
+			}
+
+			CaldavFacade facade = new CaldavFacade(Username, mAccountManager.getPassword(account), url);
 			facade.setAccount(account);
 			facade.setProvider(provider);
 			facade.setVersion(mVersion);
@@ -585,6 +593,22 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 		
 		return rowDirty;
 	}
+	
+/*	private Account UpgradeAccount(Account OldAccount) {
+		String Username = OldAccount.name;
+		String Type = OldAccount.type;
+		String Password = this.mAccountManager.getPassword(OldAccount);
+		String Url = this.mAccountManager.getUserData(OldAccount, AuthenticatorActivity.USER_DATA_URL_KEY);
+
+		Account NewAccount = new Account(Username + AuthenticatorActivity.ACCOUNT_NAME_SPLITTER + Url, Type);
+		if (this.mAccountManager.addAccountExplicitly(NewAccount, Password, null)) {
+			this.mAccountManager.setUserData(NewAccount, AuthenticatorActivity.USER_DATA_URL_KEY, Url);
+			this.mAccountManager.setUserData(NewAccount, AuthenticatorActivity.USER_DATA_USERNAME, Username);
+		}
+		this.mAccountManager.removeAccount(OldAccount, null, null);
+		
+		return NewAccount;
+	}*/
 	
 /*	private void dropAllEvents(Account account, ContentProviderClient provider,	Uri calendarUri) throws RemoteException {
 		

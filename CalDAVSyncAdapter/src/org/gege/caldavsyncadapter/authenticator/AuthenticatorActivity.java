@@ -29,7 +29,6 @@ import java.net.URISyntaxException;
 import javax.xml.parsers.ParserConfigurationException;
 
 import org.apache.http.conn.HttpHostConnectException;
-import org.gege.caldavsyncadapter.Constants;
 import org.gege.caldavsyncadapter.R;
 import org.gege.caldavsyncadapter.caldav.CaldavFacade;
 import org.gege.caldavsyncadapter.caldav.CaldavFacade.TestConnectionResult;
@@ -62,9 +61,14 @@ import android.widget.Toast;
  */
 public class AuthenticatorActivity extends Activity {
 	
-	private static final String TAG = "SyncAdapter";
+	private static final String TAG = "AuthenticatorActivity";
 
+	private static final String ACCOUNT_TYPE = "org.gege.caldavsyncadapter.account";
 
+	public static final String USER_DATA_URL_KEY = "USER_DATA_URL_KEY";
+	public static final String USER_DATA_USERNAME = "USER_DATA_USERNAME";
+	public static final String ACCOUNT_NAME_SPLITTER = "@";
+	
 	/**
 	 * The default email to populate the email field with.
 	 */
@@ -253,7 +257,16 @@ public class AuthenticatorActivity extends Activity {
 
 	
 	protected enum LoginResult {
-		 MalformedURLException, GeneralSecurityException, UnkonwnException, WrongCredentials, InvalidResponse, WrongUrl, ConnectionRefused, Success_Calendar, Success_Collection
+		 MalformedURLException, 
+		 GeneralSecurityException, 
+		 UnkonwnException, 
+		 WrongCredentials, 
+		 InvalidResponse, 
+		 WrongUrl, 
+		 ConnectionRefused, 
+		 Success_Calendar, 
+		 Success_Collection, 
+		 Account_Already_In_Use
 	}
 	
 	
@@ -262,7 +275,6 @@ public class AuthenticatorActivity extends Activity {
 	 * the user.
 	 */
 	public class UserLoginTask extends AsyncTask<Void, Void, LoginResult> {
-		
 
 		@Override
 		protected LoginResult doInBackground(Void... params) {
@@ -311,14 +323,31 @@ public class AuthenticatorActivity extends Activity {
 			switch (result) {
 			
 			case SUCCESS:
-			//case SUCCESS_COLLECTION:
+				boolean OldAccount = false;
+				LoginResult Result = LoginResult.Success_Calendar; 
 
-			//case SUCCESS_CALENDAR:
-				final Account account = new Account(mUser, "org.gege.caldavsyncadapter.account");			
-				mAccountManager.addAccountExplicitly(account, mPassword, null);
-				mAccountManager.setUserData(account, Constants.USER_DATA_URL_KEY, mURL);
+				if (OldAccount) {
+					final Account account = new Account(mUser, ACCOUNT_TYPE);			
+					if (mAccountManager.addAccountExplicitly(account, mPassword, null)) {
+						Log.v(TAG,"new account created");
+						mAccountManager.setUserData(account, USER_DATA_URL_KEY, mURL);
+					} else {
+						Log.v(TAG,"no new account created");
+						Result = LoginResult.Account_Already_In_Use;
+					}
+				} else {
+					final Account account = new Account(mUser + ACCOUNT_NAME_SPLITTER + mURL, ACCOUNT_TYPE);
+					if (mAccountManager.addAccountExplicitly(account, mPassword, null)) {
+						Log.v(TAG,"new account created");
+						mAccountManager.setUserData(account, USER_DATA_URL_KEY, mURL);
+						mAccountManager.setUserData(account, USER_DATA_USERNAME, mUser);
+					} else {
+						Log.v(TAG,"no new account created");
+						Result = LoginResult.Account_Already_In_Use;
+					}
+				}
 			
-				return LoginResult.Success_Calendar;
+				return Result;
 
 			case WRONG_CREDENTIAL:
 				return LoginResult.WrongCredentials;
@@ -338,7 +367,6 @@ public class AuthenticatorActivity extends Activity {
 			}
 			
 		}
-
 		
 
 		@Override
@@ -391,6 +419,12 @@ public class AuthenticatorActivity extends Activity {
 					toast =  Toast.makeText(getApplicationContext(), R.string.error_connection_refused, duration);
 					toast.show();
 					mURLView.setError(getString(R.string.error_connection_refused));
+					mURLView.requestFocus();
+					break;
+				case Account_Already_In_Use:
+					toast =  Toast.makeText(getApplicationContext(), R.string.error_account_already_in_use, duration);
+					toast.show();
+					mURLView.setError(getString(R.string.error_account_already_in_use));
 					mURLView.requestFocus();
 					break;
 				default:

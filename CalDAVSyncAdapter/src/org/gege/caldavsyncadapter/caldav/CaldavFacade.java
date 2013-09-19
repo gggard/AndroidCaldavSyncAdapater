@@ -217,7 +217,11 @@ public class CaldavFacade {
 	};
 
 	public enum TestConnectionResult {
-		WRONG_CREDENTIAL, WRONG_URL, WRONG_SERVER_STATUS, WRONG_ANSWER, SUCCESS
+		WRONG_CREDENTIAL, 
+		WRONG_URL, 
+		WRONG_SERVER_STATUS, 
+		WRONG_ANSWER, 
+		SUCCESS
 	}
 
 	/**
