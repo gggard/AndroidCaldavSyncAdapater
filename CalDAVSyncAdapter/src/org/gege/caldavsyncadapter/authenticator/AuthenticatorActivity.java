@@ -67,6 +67,9 @@ public class AuthenticatorActivity extends Activity {
 
 	public static final String USER_DATA_URL_KEY = "USER_DATA_URL_KEY";
 	public static final String USER_DATA_USERNAME = "USER_DATA_USERNAME";
+	public static final String USER_DATA_VERSION = "USER_DATA_VERSION";
+	public static final String CURRENT_USER_DATA_VERSION = "1";
+	
 	public static final String ACCOUNT_NAME_SPLITTER = "@";
 	
 	/**
@@ -341,6 +344,7 @@ public class AuthenticatorActivity extends Activity {
 						Log.v(TAG,"new account created");
 						mAccountManager.setUserData(account, USER_DATA_URL_KEY, mURL);
 						mAccountManager.setUserData(account, USER_DATA_USERNAME, mUser);
+						mAccountManager.setUserData(account, USER_DATA_VERSION, CURRENT_USER_DATA_VERSION);
 					} else {
 						Log.v(TAG,"no new account created");
 						Result = LoginResult.Account_Already_In_Use;

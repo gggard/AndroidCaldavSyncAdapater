@@ -136,8 +136,9 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 		ArrayList<Uri> notifyList = new ArrayList<Uri>();
 
 		try {
-			String Username = "";
-			if (!account.name.contains(AuthenticatorActivity.ACCOUNT_NAME_SPLITTER)) {
+ 			String Username = "";
+			String UserDataVersion = mAccountManager.getUserData(account, AuthenticatorActivity.USER_DATA_VERSION);
+			if (UserDataVersion == null) {
 				Username = account.name;
 			} else {
 				Username = mAccountManager.getUserData(account, AuthenticatorActivity.USER_DATA_USERNAME);
