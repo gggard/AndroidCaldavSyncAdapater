@@ -16,13 +16,13 @@ public class MultiStatusHandler extends DefaultHandler {
 	private Prop mProp;
 	private String mCurrentValue;
 	
-	private String RESPONSE = ":response";
-	private String HREF = ":href";
-	private String PROPSTAT = ":propstat";
-	private String PROP = ":prop";
-	private String STATUS = ":status";
-	private String CALENDARDATA = ":calendar-data";
-	private String GETETAG = ":getetag";
+	private String RESPONSE = "response";
+	private String HREF = "href";
+	private String PROPSTAT = "propstat";
+	private String PROP = "prop";
+	private String STATUS = "status";
+	private String CALENDARDATA = "calendar-data";
+	private String GETETAG = "getetag";
 	private boolean NewTag = false;
 	
 	public MultiStatusHandler() {

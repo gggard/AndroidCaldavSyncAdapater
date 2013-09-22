@@ -727,7 +727,7 @@ public class CaldavFacade {
 			request.addHeader(mstrcHeaderIfMatch, ETag);
 			HttpResponse response = httpClient.execute(targetHost, request, mContext);
 			checkStatus(response);
-			if ((lastStatusCode == 200) || (lastStatusCode == 204)) {
+			if ((lastStatusCode == 200) || (lastStatusCode == 201) || (lastStatusCode == 204)) {
 				Result = true;
 			} else if (lastStatusCode == 412) {
 				//Precondition failed
