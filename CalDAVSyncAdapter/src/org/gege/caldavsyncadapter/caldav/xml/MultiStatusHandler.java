@@ -23,7 +23,6 @@ public class MultiStatusHandler extends DefaultHandler {
 	private String STATUS = "status";
 	private String CALENDARDATA = "calendar-data";
 	private String GETETAG = "getetag";
-	private boolean NewTag = false;
 	
 	public MultiStatusHandler() {
 		mMultiStatus = new MultiStatus();
@@ -31,24 +30,19 @@ public class MultiStatusHandler extends DefaultHandler {
 	
 	@Override
 	public void characters(char[] ch, int start, int length) throws SAXException {
-		if (NewTag)
-			mCurrentValue = new String(ch, start, length);
-		else
-			mCurrentValue += new String(ch, start, length);
-		
-		NewTag = false;
+		mCurrentValue += new String(ch, start, length);
 	}
 
 	@Override
 	public void startElement(String uri, String localName, String qName, Attributes atts) throws SAXException {
-		NewTag = true;
-		if (qName.endsWith(RESPONSE)) {
+		mCurrentValue = "";
+		if (localName.equals(RESPONSE)) {
 			mResponse = new Response();
 			mMultiStatus.ResponseList.add(mResponse);
-		} else if (qName.endsWith(PROPSTAT)) {
+		} else if (localName.equals(PROPSTAT)) {
 			mPropStat = new PropStat();
 			mResponse.propstat = mPropStat;
-		} else if (qName.endsWith(PROP)) {
+		} else if (localName.equals(PROP)) {
 			mProp = new Prop();
 			mPropStat.prop = mProp;
 		}
@@ -56,13 +50,13 @@ public class MultiStatusHandler extends DefaultHandler {
 
 	@Override
 	public void endElement(String uri, String localName, String qName) throws SAXException {
-		if (qName.endsWith(HREF)) {
+		if (localName.equals(HREF)) {
 			mResponse.href = mCurrentValue;
-		} else if (qName.endsWith(STATUS)) {
+		} else if (localName.equals(STATUS)) {
 			mPropStat.status = mCurrentValue;
-		} else if (qName.endsWith(CALENDARDATA)) {
+		} else if (localName.equals(CALENDARDATA)) {
 			mProp.calendardata = mCurrentValue;
-		} else if (qName.endsWith(GETETAG)) {
+		} else if (localName.equals(GETETAG)) {
 			mProp.getetag = mCurrentValue;
 		}
 	}

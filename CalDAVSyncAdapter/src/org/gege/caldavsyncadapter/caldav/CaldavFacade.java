@@ -631,8 +631,8 @@ public class CaldavFacade {
 		request.setURI(uri);
 		request.setHeader("Host", targetHost.getHostName());
 		request.setHeader("Depth", Integer.toString(depth));
-		//request.setHeader("Content-Type", "application/xml;charset=\"UTF-8\"");
-		request.setHeader("Content-Type", "text/xml;charset=\"UTF-8\"");
+		request.setHeader("Content-Type", "application/xml;charset=\"UTF-8\"");
+		//request.setHeader("Content-Type", "text/xml;charset=\"UTF-8\"");
 		try {
 			request.setEntity(new StringEntity(data));
 		} catch (UnsupportedEncodingException e) {
