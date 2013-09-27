@@ -517,7 +517,8 @@ public class CaldavFacade {
 				continue; // not an event
 
 			calendarEvent.setETag(node.getTextContent().trim());
-			calendarEvent.calendarURL = this.url;
+			//calendarEvent.calendarURL = this.url;
+			calendarEvent.calendarURL = calendar.getURI().toURL();
 
 			node = node.getParentNode(); // prop
 			node = node.getParentNode(); // propstat
@@ -541,6 +542,15 @@ public class CaldavFacade {
 	private void parseXML(HttpResponse response, ContentHandler contentHandler)
 			throws IOException, CaldavProtocolException {
 		InputStream is = response.getEntity().getContent();
+		/*BufferedReader bReader = new BufferedReader(new InputStreamReader(is, "UTF-8"));
+		String Content = "";
+		String Line = bReader.readLine();
+
+		while (Line != null) {
+			Content += Line;
+			Line = bReader.readLine();
+		}*/
+		
 		SAXParserFactory factory = SAXParserFactory.newInstance();
 		try {
 			SAXParser parser = factory.newSAXParser();
