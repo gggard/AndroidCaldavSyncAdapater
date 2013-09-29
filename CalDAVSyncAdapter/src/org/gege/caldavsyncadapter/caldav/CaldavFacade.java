@@ -801,7 +801,7 @@ public class CaldavFacade {
 			request.addHeader(mstrcHeaderIfMatch, ETag);
 			HttpResponse response = httpClient.execute(targetHost, request, mContext);
 			checkStatus(response);
-			if (lastStatusCode == 204) {
+			if ((lastStatusCode == 204) || (lastStatusCode == 200)) {
 				Result = true;
 			} else {
 				Log.w(TAG, "Unkown StatusCode during deletion of an event");
