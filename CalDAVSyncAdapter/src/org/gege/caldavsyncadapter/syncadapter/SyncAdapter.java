@@ -466,7 +466,7 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 					androidEvent.createIcs(newGUID);
 					
 					if (facade.createEvent(URI.create(SyncID), androidEvent.getIcsEvent().toString())) {
-						//HINT: bugfix for google calendar
+						//HINT: bugfix for google calendar replace("@", "%40")
 						if (SyncID.contains("@"))
 							SyncID = SyncID.replace("@", "%40");
 						ContentValues values = new ContentValues();

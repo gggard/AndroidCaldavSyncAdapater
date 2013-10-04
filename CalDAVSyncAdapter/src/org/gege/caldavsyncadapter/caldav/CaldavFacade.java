@@ -468,6 +468,8 @@ public class CaldavFacade {
 				+ "</D:prop>" + "</D:propfind>";
 
 		HttpPropFind request = null;
+		
+		String EventUri;
 
 		/*request = new HttpPropFind();
 		request.setURI(calendar.getURI());
@@ -528,7 +530,10 @@ public class CaldavFacade {
 			for (int j = 0; j < children.getLength(); j++) {
 				Node childNode = children.item(j);
 				if ((childNode.getLocalName()!=null) && (childNode.getLocalName().equalsIgnoreCase("href"))) {
-					calendarEvent.setUri(new URI(childNode.getTextContent().trim()));
+					EventUri = childNode.getTextContent().trim();
+					//HINT: bugfix for zimbra calendar: replace("@", "%40")
+					EventUri = EventUri.replace("@", "%40");
+					calendarEvent.setUri(new URI(EventUri));
 				}
 			}
 
@@ -683,7 +688,7 @@ public class CaldavFacade {
 		boolean Result = false;
 		HttpReport request = null;
 
-		//HINT: bugfix for google calendar
+		//HINT: bugfix for google calendar: replace("@", "%40")
 		String data = XML_VERSION +
 				"<C:calendar-multiget xmlns:D=\"DAV:\" xmlns:C=\"urn:ietf:params:xml:ns:caldav\">" +
 					"<D:prop>" +
