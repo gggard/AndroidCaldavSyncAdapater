@@ -158,7 +158,7 @@ public class CalendarEvent extends org.gege.caldavsyncadapter.Event {
 				if (responselist.size() == 1) {
 					response = responselist.get(0);
 					//HINT: bugfix for google calendar
-					if (response.href.equals(this.getUri().getPath().replace("@", "%40"))) {
+					if (response.href.replace("@", "%40").equals(this.getUri().getPath().replace("@", "%40"))) {
 						propstat = response.propstat;
 						if (propstat.status.contains("200 OK")) {
 							prop = propstat.prop;
