@@ -53,7 +53,8 @@ public class MultiStatusHandler extends DefaultHandler {
 		if (localName.equals(HREF)) {
 			mResponse.href = mCurrentValue;
 		} else if (localName.equals(STATUS)) {
-			mPropStat.status = mCurrentValue;
+			if (mPropStat != null)
+				mPropStat.status = mCurrentValue;
 		} else if (localName.equals(CALENDARDATA)) {
 			mProp.calendardata = mCurrentValue;
 		} else if (localName.equals(GETETAG)) {

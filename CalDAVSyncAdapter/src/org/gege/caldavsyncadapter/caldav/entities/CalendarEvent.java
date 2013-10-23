@@ -158,13 +158,15 @@ public class CalendarEvent extends org.gege.caldavsyncadapter.Event {
 				if (responselist.size() == 1) {
 					response = responselist.get(0);
 					//HINT: bugfix for google calendar, zimbra replace("@", "%40")
-					if (response.href.replace("@", "%40").equals(this.getUri().getPath().replace("@", "%40"))) {
+					if (response.href.replace("@", "%40").equals(this.getUri().getRawPath().replace("@", "%40"))) {
 						propstat = response.propstat;
-						if (propstat.status.contains("200 OK")) {
-							prop = propstat.prop;
-							ics = prop.calendardata;
-							this.setETag(prop.getetag);
-							Result = true;
+						if (propstat != null) {
+							if (propstat.status.contains("200 OK")) {
+								prop = propstat.prop;
+								ics = prop.calendardata;
+								this.setETag(prop.getetag);
+								Result = true;
+							}
 						}
 					}
 				}
