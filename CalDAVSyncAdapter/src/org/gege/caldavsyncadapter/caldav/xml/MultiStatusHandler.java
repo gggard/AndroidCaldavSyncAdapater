@@ -52,7 +52,7 @@ public class MultiStatusHandler extends DefaultHandler {
 	public void endElement(String uri, String localName, String qName) throws SAXException {
 		if (localName.equals(HREF)) {
 			mResponse.href = mCurrentValue;
-		} else if (localName.equals(STATUS)) {
+		} else if (localName.equals(STATUS) && mPropStat != null) {
 			mPropStat.status = mCurrentValue;
 		} else if (localName.equals(CALENDARDATA)) {
 			mProp.calendardata = mCurrentValue;
