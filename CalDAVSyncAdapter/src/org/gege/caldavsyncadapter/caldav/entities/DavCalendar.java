@@ -89,6 +89,8 @@ public class DavCalendar {
 	
 	private ArrayList<CalendarEvent> mCalendarEvents = new ArrayList<CalendarEvent>();
 	
+	private int mTagCounter = 1;
+	
 	/**
 	 * example: http://caldav.example.com/calendarserver.php/calendars/username/calendarname
 	 */
@@ -483,6 +485,35 @@ public class DavCalendar {
 	}
 	
 	/**
+	 * marks the android event as already handled
+	 * @return
+	 * @see AndroidEvent#cInternalTag
+	 * @see SyncAdapter#synchroniseEvents(CaldavFacade, Account, ContentProviderClient, Uri, DavCalendar, SyncStats)
+	 * @throws RemoteException
+	 */
+	public boolean tagAndroidEvent(AndroidEvent androidEvent) throws RemoteException {
+		boolean Result = false;
+		
+		ContentValues values = new ContentValues();
+		//values.put(Event.INTERNALTAG, 1);
+		values.put(Event.INTERNALTAG, mTagCounter);
+		//values.put(Event.INTERNALTAG, String.valueOf(mTagCounter));
+		
+		int RowCount = this.mProvider.update(asSyncAdapter(androidEvent.getUri(), this.mAccount.name, this.mAccount.type), values, null, null);
+		//Log.v(TAG,"event tag nr: " + String.valueOf(mTagCounter));
+		//Log.v(TAG,"Rows updated: " + String.valueOf(RowCount));
+		
+		if (RowCount == 1) {
+			Result = true;
+			mTagCounter += 1;
+		} else {
+			Log.v(TAG,"EVENT NOT TAGGED!");
+		}
+		
+		return Result;
+	} 
+	
+	/**
 	 * removes the tag of all android events
 	 * @return
 	 * @see AndroidEvent#cInternalTag
@@ -490,14 +521,20 @@ public class DavCalendar {
 	 * @throws RemoteException
 	 */
 	public int untagAndroidEvents() throws RemoteException {
-		
+		int RowCount = 0;
+		int Steps = 100;
 		ContentValues values = new ContentValues();
 		values.put(Event.INTERNALTAG, 0);
+
+		for (int i=1; i < this.mTagCounter; i = i + Steps) {
+			String mSelectionClause = "(CAST(" + Event.INTERNALTAG +  " AS INT) >= ?) AND (CAST(" + Event.INTERNALTAG +  " AS INT) < ?) AND (" + Events.CALENDAR_ID + " = ?)";
+			String[] mSelectionArgs = {String.valueOf(i), String.valueOf(i + Steps), Long.toString(ContentUris.parseId(this.getAndroidCalendarUri()))};
+			RowCount += this.mProvider.update(asSyncAdapter(Events.CONTENT_URI, this.mAccount.name, this.mAccount.type), values, mSelectionClause, mSelectionArgs);
+		}
+		/*String mSelectionClause = "(" + Event.INTERNALTAG +  " > ?) AND (" + Events.CALENDAR_ID + " = ?)";
+		String[] mSelectionArgs = {"0", Long.toString(ContentUris.parseId(this.getAndroidCalendarUri()))};
+		RowCount += this.mProvider.update(asSyncAdapter(Events.CONTENT_URI, this.mAccount.name, this.mAccount.type), values, mSelectionClause, mSelectionArgs);*/
 		
-		String mSelectionClause = "(" + Event.INTERNALTAG +  " = ?) AND (" + Events.CALENDAR_ID + " = ?)";
-		String[] mSelectionArgs = {"1", Long.toString(ContentUris.parseId(this.getAndroidCalendarUri()))};
-		
-		int RowCount = this.mProvider.update(asSyncAdapter(Events.CONTENT_URI, this.mAccount.name, this.mAccount.type), values, mSelectionClause, mSelectionArgs);
 		//Log.d(TAG, "Rows reseted: " + RowCount.toString());
 		return RowCount;
 	}
@@ -509,7 +546,7 @@ public class DavCalendar {
 	 * @throws RemoteException
 	 */
 	public int deleteUntaggedEvents() throws RemoteException {
-		String mSelectionClause = "(" + Event.INTERNALTAG +  "<> ?) AND (" + Events.CALENDAR_ID + " = ?)";
+		String mSelectionClause = "(" + Event.INTERNALTAG +  " < ?) AND (" + Events.CALENDAR_ID + " = ?)";
 		String[] mSelectionArgs = {"1", Long.toString(ContentUris.parseId(this.getAndroidCalendarUri()))};
 		
 		int CountDeleted = this.mProvider.delete(asSyncAdapter(Events.CONTENT_URI, this.mAccount.name, this.mAccount.type), mSelectionClause, mSelectionArgs);	

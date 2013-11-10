@@ -867,7 +867,8 @@ public class CalendarEvent extends org.gege.caldavsyncadapter.Event {
 			long EventID = curEvent.getLong(curEvent.getColumnIndex(Events._ID));
 			Uri returnedUri = ContentUris.withAppendedId(uriEvents, EventID);
 			
-			androidEvent = new AndroidEvent(this.mAccount, this.mProvider, returnedUri, androidCalendar.getAndroidCalendarUri());
+			//androidEvent = new AndroidEvent(this.mAccount, this.mProvider, returnedUri, androidCalendar.getAndroidCalendarUri());
+			androidEvent = new AndroidEvent(returnedUri, androidCalendar.getAndroidCalendarUri());
 			androidEvent.readContentValues(curEvent);
 			
 			selection = "(" + Attendees.EVENT_ID + " = ?)";
