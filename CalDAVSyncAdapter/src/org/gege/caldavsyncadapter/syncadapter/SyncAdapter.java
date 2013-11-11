@@ -351,7 +351,8 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 					}
 				}
 				if (androidEvent != null)
-					if (androidEvent.tagAndroidEvent())
+					//if (androidEvent.tagAndroidEvent())
+					if (androidCalendar.tagAndroidEvent(androidEvent))
 						rowTag += 1;
 				
 				
@@ -433,7 +434,8 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 				EventID = curEvent.getLong(curEvent.getColumnIndex(Events._ID));
 				Uri returnedUri = ContentUris.withAppendedId(Events.CONTENT_URI, EventID);
 				
-				androidEvent = new AndroidEvent(account, provider, returnedUri, calendarUri);
+				//androidEvent = new AndroidEvent(account, provider, returnedUri, calendarUri);
+				androidEvent = new AndroidEvent(returnedUri, calendarUri);
 				androidEvent.readContentValues(curEvent);
 				
 				selection = "(" + Attendees.EVENT_ID + " = ?)";
@@ -466,7 +468,7 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 					androidEvent.createIcs(newGUID);
 					
 					if (facade.createEvent(URI.create(SyncID), androidEvent.getIcsEvent().toString())) {
-						//HINT: bugfix for google calendar
+						//HINT: bugfix for google calendar replace("@", "%40")
 						if (SyncID.contains("@"))
 							SyncID = SyncID.replace("@", "%40");
 						ContentValues values = new ContentValues();

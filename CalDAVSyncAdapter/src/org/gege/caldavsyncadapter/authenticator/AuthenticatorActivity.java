@@ -98,7 +98,10 @@ public class AuthenticatorActivity extends Activity {
 
 	private String mURL;
 	private EditText mURLView;
-
+	
+	private String mAccountname;
+	private EditText mAccountnameView;
+	
 	public AuthenticatorActivity() {
 		super();
 		
@@ -135,6 +138,8 @@ public class AuthenticatorActivity extends Activity {
 
 		
 		mURLView = (EditText) findViewById(R.id.url);
+		
+		mAccountnameView = (EditText) findViewById(R.id.accountname);
 		
 		mLoginFormView = findViewById(R.id.login_form);
 		mLoginStatusView = findViewById(R.id.login_status);
@@ -176,9 +181,20 @@ public class AuthenticatorActivity extends Activity {
 		mUser = mUserView.getText().toString();
 		mPassword = mPasswordView.getText().toString();
 		mURL = mURLView.getText().toString();
+		mAccountname = mAccountnameView.getText().toString();
 
 		boolean cancel = false;
 		View focusView = null;
+		
+		if (!mAccountname.equals("")) {
+			Account TestAccount = new Account(mAccountname, ACCOUNT_TYPE);
+			String TestUrl = mAccountManager.getUserData(TestAccount, AuthenticatorActivity.USER_DATA_URL_KEY);
+			if (TestUrl != null) {
+				mAccountnameView.setError(getString(R.string.error_account_already_in_use));
+				focusView = mAccountnameView;
+				cancel = true;
+			}
+		}
 
 		// Check for a valid password.
 		if (TextUtils.isEmpty(mPassword)) {
@@ -339,7 +355,12 @@ public class AuthenticatorActivity extends Activity {
 						Result = LoginResult.Account_Already_In_Use;
 					}
 				} else {
-					final Account account = new Account(mUser + ACCOUNT_NAME_SPLITTER + mURL, ACCOUNT_TYPE);
+					final Account account; 
+					if (mAccountname.equals("")) {
+						account = new Account(mUser + ACCOUNT_NAME_SPLITTER + mURL, ACCOUNT_TYPE);
+					} else {
+						account = new Account(mAccountname, ACCOUNT_TYPE);
+					}
 					if (mAccountManager.addAccountExplicitly(account, mPassword, null)) {
 						Log.v(TAG,"new account created");
 						mAccountManager.setUserData(account, USER_DATA_URL_KEY, mURL);

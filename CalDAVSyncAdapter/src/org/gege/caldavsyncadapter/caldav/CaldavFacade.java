@@ -316,9 +316,14 @@ public class CaldavFacade {
 		return calendars;
 	}
 
-	private final static String PROPFIND_USER_PRINCIPAL = XML_VERSION
-			+ "<d:propfind xmlns:d=\"DAV:\"><d:prop><d:current-user-principal /><d:principal-URL /></d:prop></d:propfind>";
-
+	private final static String PROPFIND_USER_PRINCIPAL = XML_VERSION +
+			"<d:propfind xmlns:d=\"DAV:\">" +
+				"<d:prop>" +
+					"<d:current-user-principal />" +
+					"<d:principal-URL />" +
+				"</d:prop>" +
+			"</d:propfind>";
+	
 	private URI getUserPrincipal() throws SocketException,
 			ClientProtocolException, AuthenticationException,
 			FileNotFoundException, IOException, CaldavProtocolException,
@@ -468,6 +473,8 @@ public class CaldavFacade {
 				+ "</D:prop>" + "</D:propfind>";
 
 		HttpPropFind request = null;
+		
+		String EventUri;
 
 		/*request = new HttpPropFind();
 		request.setURI(calendar.getURI());
@@ -528,7 +535,10 @@ public class CaldavFacade {
 			for (int j = 0; j < children.getLength(); j++) {
 				Node childNode = children.item(j);
 				if ((childNode.getLocalName()!=null) && (childNode.getLocalName().equalsIgnoreCase("href"))) {
-					calendarEvent.setUri(new URI(childNode.getTextContent().trim()));
+					EventUri = childNode.getTextContent().trim();
+					//HINT: bugfix for zimbra calendar: replace("@", "%40")
+					EventUri = EventUri.replace("@", "%40");
+					calendarEvent.setUri(new URI(EventUri));
 				}
 			}
 
@@ -602,7 +612,8 @@ public class CaldavFacade {
 		HttpPropFind request = new HttpPropFind();
 
 		request.setURI(uri);
-		request.setHeader("Host", targetHost.getHostName());
+		//request.setHeader("Host", targetHost.getHostName());
+		request.setHeader("Host", targetHost.getHostName() + ":" + String.valueOf(targetHost.getPort()));
 		request.setHeader("Depth", Integer.toString(depth));
 		request.setHeader("Content-Type", "application/xml;charset=\"UTF-8\"");
 		try {
@@ -616,7 +627,8 @@ public class CaldavFacade {
 	private HttpDelete createDeleteRequest(URI uri) {
 		HttpDelete request = new HttpDelete();
 		request.setURI(uri);
-		request.setHeader("Host", targetHost.getHostName());
+		//request.setHeader("Host", targetHost.getHostName());
+		request.setHeader("Host", targetHost.getHostName() + ":" + String.valueOf(targetHost.getPort()));
 		request.setHeader("Content-Type", "application/xml;charset=\"UTF-8\"");
 		return request;
 	}
@@ -624,7 +636,8 @@ public class CaldavFacade {
 	private HttpPut createPutRequest(URI uri, String data, int depth) {
 		HttpPut request = new HttpPut();
 		request.setURI(uri);
-		request.setHeader("Host", targetHost.getHostName());
+		//request.setHeader("Host", targetHost.getHostName());
+		request.setHeader("Host", targetHost.getHostName() + ":" + String.valueOf(targetHost.getPort()));
 		//request.setHeader("Content-Type", "application/xml;charset=\"UTF-8\"");
 		request.setHeader("Content-Type", "text/calendar; charset=UTF-8");
 		try {
@@ -639,7 +652,8 @@ public class CaldavFacade {
 	private static HttpReport createReportRequest(URI uri, String data, int depth) {
 		HttpReport request = new HttpReport();
 		request.setURI(uri);
-		request.setHeader("Host", targetHost.getHostName());
+		//request.setHeader("Host", targetHost.getHostName());
+		request.setHeader("Host", targetHost.getHostName() + ":" + String.valueOf(targetHost.getPort()));
 		request.setHeader("Depth", Integer.toString(depth));
 		request.setHeader("Content-Type", "application/xml;charset=\"UTF-8\"");
 		//request.setHeader("Content-Type", "text/xml;charset=\"UTF-8\"");
@@ -683,14 +697,14 @@ public class CaldavFacade {
 		boolean Result = false;
 		HttpReport request = null;
 
-		//HINT: bugfix for google calendar
+		//HINT: bugfix for google calendar: replace("@", "%40")
 		String data = XML_VERSION +
 				"<C:calendar-multiget xmlns:D=\"DAV:\" xmlns:C=\"urn:ietf:params:xml:ns:caldav\">" +
 					"<D:prop>" +
-						"<D:getetag/>" +
-						"<C:calendar-data/>" +
+						"<D:getetag />" +
+						"<C:calendar-data />" +
 					"</D:prop>" +
-					"<D:href>" + calendarEvent.getUri().getPath().replace("@", "%40") + "</D:href>" +
+					"<D:href>" + calendarEvent.getUri().getRawPath().replace("@", "%40") + "</D:href>" +
 				"</C:calendar-multiget>";
 
 		URI calendarURI = null;

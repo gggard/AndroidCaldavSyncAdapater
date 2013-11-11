@@ -5,8 +5,10 @@
     <!-- Strings related to login -->
     <string name="prompt_user">Benutzer</string>
     <string name="prompt_password">Passwort</string>
+    <string name="prompt_accountname">Accountname (optional)</string>
     <string name="action_sign_in_register"><b>Anmelden</b> oder registrieren</string>
     <string name="action_sign_in_short">Anmelden</string>
+    <string name="action_sign_in_note_accountname">Hinweis: Der Accountname wird auch als Emailadresse des Organisators verwendet.</string>
     <string name="menu_forgot_password">Passwort wiederherstellen</string>
     <string name="login_progress_signing_in">Teste Verbindung…</string>
     <string name="error_invalid_email">Diese E-Mail Adresse ist ungültig</string>
