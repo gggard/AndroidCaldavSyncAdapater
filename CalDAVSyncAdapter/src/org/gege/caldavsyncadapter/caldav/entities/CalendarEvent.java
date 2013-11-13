@@ -748,6 +748,9 @@ public class CalendarEvent extends org.gege.caldavsyncadapter.Event {
 			if (End != 0)
 				Duration = (End - Start) / 1000; // get rid of the milliseconds, they cann't be described with RFC2445-Duration
 			
+			if (Duration < 0) {
+				Duration = 0;
+			}
 			int Days = (int) Math.ceil(Duration / 24 / 60 / 60);
 			int Hours = (int) Math.ceil((Duration - (Days * 24 * 60 * 60)) / 60 / 60);
 			int Minutes = (int) Math.ceil((Duration - (Days * 24 * 60 * 60) - (Hours * 60 * 60)) / 60);

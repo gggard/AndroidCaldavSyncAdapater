@@ -641,8 +641,8 @@ public class CaldavFacade {
 		//request.setHeader("Content-Type", "application/xml;charset=\"UTF-8\"");
 		request.setHeader("Content-Type", "text/calendar; charset=UTF-8");
 		try {
-			//request.setEntity(new StringEntity(data, "UTF-8"));
-			request.setEntity(new StringEntity(data));
+			request.setEntity(new StringEntity(data, "UTF-8"));
+			//request.setEntity(new StringEntity(data));
 		} catch (UnsupportedEncodingException e) {
 			throw new AssertionError("UTF-8 is unknown");
 		}
