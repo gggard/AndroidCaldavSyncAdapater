@@ -21,12 +21,10 @@
 
 package org.gege.caldavsyncadapter.caldav;
 
-import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.io.UnsupportedEncodingException;
 import java.net.MalformedURLException;
 import java.net.SocketException;
@@ -76,6 +74,7 @@ import org.apache.http.params.HttpParams;
 import org.apache.http.params.HttpProtocolParams;
 import org.apache.http.protocol.BasicHttpContext;
 import org.apache.http.protocol.HttpContext;
+import org.apache.http.util.EntityUtils;
 import org.gege.caldavsyncadapter.BuildConfig;
 import org.gege.caldavsyncadapter.caldav.entities.DavCalendar;
 import org.gege.caldavsyncadapter.caldav.entities.DavCalendar.CalendarSource;
@@ -492,17 +491,7 @@ public class CaldavFacade {
 		Log.d(TAG, "Getting eTag by PROPFIND at " + request.getURI());
 
 		HttpResponse response = httpClient.execute(targetHost, request, mContext);
-
-		BufferedReader reader = new BufferedReader(new InputStreamReader(
-				response.getEntity().getContent(), "UTF-8"));
-
-		String line;
-		String body = "";
-		do {
-			line = reader.readLine();
-			if (line != null)
-				body += line;
-		} while (line != null);
+		String body = EntityUtils.toString(response.getEntity(), "UTF-8");
 
 		Log.d(TAG, "HttpResponse status=" + response.getStatusLine()
 				+ " body= " + body);
@@ -675,17 +664,7 @@ public class CaldavFacade {
 		request.setHeader("Content-Type", "application/xml;charset=\"UTF-8\"");
 
 		HttpResponse response = httpClient.execute(targetHost, request);
-
-		BufferedReader reader = new BufferedReader(new InputStreamReader(
-				response.getEntity().getContent(), "UTF-8"));
-
-		String line;
-		String body = "";
-		do {
-			line = reader.readLine();
-			if (line != null)
-				body += line + "\n";
-		} while (line != null);
+		String body = EntityUtils.toString(response.getEntity(), "UTF-8");
 
 		calendarEvent.setICSasString(body);
 
@@ -717,17 +696,7 @@ public class CaldavFacade {
 		request = createReportRequest(calendarURI, data, 1);
 
 		HttpResponse response = httpClient.execute(targetHost, request);
-
-		BufferedReader reader = new BufferedReader(new InputStreamReader(
-				response.getEntity().getContent(), "UTF-8"));
-
-		String line;
-		String body = "";
-		do {
-			line = reader.readLine();
-			if (line != null)
-				body += line + "\n";
-		} while (line != null);
+		String body = EntityUtils.toString(response.getEntity(), "UTF-8");
 
 		if (calendarEvent.setICSasMultiStatus(body))
 			Result = true;
