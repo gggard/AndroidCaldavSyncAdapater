@@ -1,0 +1,4 @@
+*.orig
+build/
+local.properties
+*.iml

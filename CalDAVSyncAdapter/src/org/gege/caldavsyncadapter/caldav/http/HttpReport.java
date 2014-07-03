@@ -26,6 +26,8 @@ import org.apache.http.client.methods.HttpUriRequest;
 
 public class HttpReport extends HttpEntityEnclosingRequestBase implements HttpUriRequest {
 
+	public static final String USER_DATA_TRUST_ALL_KEY = "USER_DATA_TRUSTALL_KEY";
+
 	@Override
 	public String getMethod() {
 		return "REPORT";
