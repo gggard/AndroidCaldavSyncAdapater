@@ -54,7 +54,8 @@ public final class EasySSLSocketFactory implements
 	
     private static final EasySSLSocketFactory DEFAULT_FACTORY = new EasySSLSocketFactory();
 
-    public static EasySSLSocketFactory getSocketFactory() {
+    public static EasySSLSocketFactory getSocketFactory
+            () {
         return DEFAULT_FACTORY;
     }
 

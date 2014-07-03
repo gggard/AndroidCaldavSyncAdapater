@@ -22,8 +22,10 @@
     <string name="error_connection_refused">Connection refused</string>
     <string name="error_unkown_error">Unknown error</string>
     <string name="error_account_already_in_use">Account already added</string>
+    <string name="error_ssl">SSL error</string>
     <string name="success_calendar">Connection success (calendar)</string>
     <string name="success_collection">Connection success (multiple calendars)</string>
-    
+    <string name="trustall">Check SSL Certificate</string>
+    <string name="error_untrusted_certificate">Untrusted certificate</string>
 
 </resources>
