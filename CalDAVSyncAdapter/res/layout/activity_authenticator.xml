@@ -45,9 +45,10 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:hint="@string/prompt_user"
-                android:inputType="text"
                 android:maxLines="1"
-                android:singleLine="true" />
+                android:singleLine="true"
+                android:inputType="text|textEmailAddress"
+                />
 
             <EditText
                 android:id="@+id/password"
@@ -60,6 +61,14 @@
                 android:inputType="textPassword"
                 android:maxLines="1"
                 android:singleLine="true" />
+
+
+            <CheckBox
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Display Password"
+                android:id="@+id/showPassword"
+                android:checked="false" />
 
             <EditText
                 android:id="@+id/url"

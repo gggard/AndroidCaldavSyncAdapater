@@ -45,12 +45,15 @@ import android.content.pm.PackageManager.NameNotFoundException;
 import android.os.AsyncTask;
 import android.os.Build;
 import android.os.Bundle;
+import android.text.InputType;
 import android.text.TextUtils;
 import android.util.Log;
 import android.view.KeyEvent;
 import android.view.Menu;
 import android.view.View;
 import android.view.inputmethod.EditorInfo;
+import android.widget.CheckBox;
+import android.widget.CompoundButton;
 import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -101,7 +104,9 @@ public class AuthenticatorActivity extends Activity {
 	
 	private String mAccountname;
 	private EditText mAccountnameView;
-	
+
+	private CheckBox showPassword;
+
 	public AuthenticatorActivity() {
 		super();
 		
@@ -119,6 +124,7 @@ public class AuthenticatorActivity extends Activity {
 		mUser = getIntent().getStringExtra(EXTRA_EMAIL);
 		mUserView = (EditText) findViewById(R.id.user);
 		mUserView.setText(mUser);
+		mUserView.requestFocus();
 		
 		mContext = getBaseContext();
 
@@ -135,6 +141,18 @@ public class AuthenticatorActivity extends Activity {
 						return false;
 					}
 				});
+
+		showPassword = (CheckBox) findViewById(R.id.showPassword);
+		showPassword.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+			@Override
+			public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+				if(isChecked) {
+					mPasswordView.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD);
+				} else {
+					mPasswordView.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
+				}
+			}
+		});
 
 		
 		mURLView = (EditText) findViewById(R.id.url);
