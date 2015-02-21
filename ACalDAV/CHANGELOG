@@ -1,0 +1,13 @@
+--- Version 0.9.0 ---
++ created README.md
++ added GMail icon to insert GMail as account name
++ added clear buttons to input fields
++ created new app icon
+* fixed ical4j related NPE's
+
+--- Version 0.8.0 ---
+* added error message for SSL
+
+
++ = additional feature
+* = minor patch

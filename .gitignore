@@ -1,0 +1,10 @@
+*.orig
+build/
+local.properties
+*.iml
+.idea
+.navigation
+buildQuality.gradle_
+aCalDAV/gradle.properties
+wait_for_emulator
+resources

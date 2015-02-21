@@ -1,0 +1,84 @@
+import com.android.builder.core.DefaultManifestParser
+
+apply plugin: 'com.android.application'
+apply from: '../config/quality/quality.gradle'
+
+android {
+    compileSdkVersion 20
+    buildToolsVersion '20'
+
+    sourceSets {
+        main {
+            manifest.srcFile 'AndroidManifest.xml'
+            java.srcDirs = ['src']
+            resources.srcDirs = ['src']
+            aidl.srcDirs = ['src']
+            renderscript.srcDirs = ['src']
+            res.srcDirs = ['res']
+            assets.srcDirs = ['assets']
+        }
+
+    }
+
+    defaultConfig {
+        applicationId "de.jdevel.acaldav"
+        minSdkVersion 14
+        targetSdkVersion 20
+
+        def manifestParser = new DefaultManifestParser()
+        versionName = manifestParser.getVersionName(android.sourceSets.main.manifest.srcFile)
+    }
+
+    signingConfigs {
+        //noinspection GroovyMissingReturnStatement
+        release {
+            if (project.hasProperty('myKeyAlias') &&
+                    project.hasProperty('myStoreFile') &&
+                    project.hasProperty('myStorePassword') &&
+                    project.hasProperty('myKeyPassword')) {
+                keyAlias = myKeyAlias
+                storeFile = file(myStoreFile)
+                storePassword = myStorePassword
+                keyPassword = myKeyPassword
+            }
+        }
+    }
+
+    buildTypes {
+
+        release {
+            runProguard true
+            signingConfig signingConfigs.release
+            proguardFile 'proguard-project.txt'
+        }
+
+        debug {
+            //noinspection GroovyAssignabilityCheck
+            applicationIdSuffix = ".debug"
+            //noinspection GroovyAssignabilityCheck
+            versionNameSuffix = "-DEBUG"
+        }
+
+        //noinspection GroovyAssignabilityCheck
+        applicationVariants.all { variant ->
+            def file = variant.outputFile
+            variant.outputFile = new File(file.parent, file.name.
+                    replace("-release.apk", "_v" + versionName + "_r" + versionCode + ".apk"))
+        }
+    }
+
+    packagingOptions {
+        exclude 'META-INF/LICENSE.txt'
+        exclude 'META-INF/NOTICE.txt'
+    }
+
+}
+
+dependencies {
+    compile 'com.android.support:support-v4:20.0.0'
+    compile 'backport-util-concurrent:backport-util-concurrent:3.1'
+    compile 'commons-codec:commons-codec:1.5'
+    compile 'commons-lang:commons-lang:2.6'
+    compile 'org.mnode.ical4j:ical4j:1.0.5.2'
+}
+

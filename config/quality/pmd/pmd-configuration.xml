@@ -1,0 +1,80 @@
+<?xml version="1.0"?>
+<ruleset name="Custom ruleset"
+  xmlns="http://pmd.sf.net/ruleset/1.0.0"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://pmd.sf.net/ruleset/1.0.0 http://pmd.sf.net/ruleset_xml_schema.xsd"
+  xsi:noNamespaceSchemaLocation="http://pmd.sf.net/ruleset_xml_schema.xsd">
+
+  <description>
+    Ulli's PMD rules.
+  </description>
+
+  <exclude-pattern>.*/gen/.*</exclude-pattern>
+
+  <rule ref="config/quality/pmd/rulesets/basic.xml">
+    <exclude name="EmptyCatchBlock"/>
+  </rule>
+  <rule ref="config/quality/pmd/rulesets/basic.xml/EmptyCatchBlock">
+    <properties>
+      <property name="allowCommentedBlocks" value="true"/>
+    </properties>
+  </rule>
+  <rule ref="config/quality/pmd/rulesets/braces.xml"/>
+  <rule ref="config/quality/pmd/rulesets/clone.xml"/>
+  <rule ref="config/quality/pmd/rulesets/codesize.xml">
+    <exclude name="CyclomaticComplexity"/>
+    <exclude name="TooManyMethods"/>
+  </rule>
+  <rule ref="config/quality/pmd/rulesets/codesize.xml/CyclomaticComplexity">
+    <properties>
+      <property name="showClassesComplexity" value="false"/>
+    </properties>
+  </rule>
+  <rule ref="config/quality/pmd/rulesets/controversial.xml">
+    <exclude name="UseConcurrentHashMap"/>
+    <exclude name="AvoidLiteralsInIfCondition"/>
+    <exclude name="AtLeastOneConstructor"/>
+    <exclude name="DataflowAnomalyAnalysis"/>
+    <exclude name="OnlyOneReturn"/>
+    <exclude name="BooleanInversion"/>
+    <exclude name="DefaultPackage"/>
+  </rule>
+  <rule ref="config/quality/pmd/rulesets/coupling.xml"/>
+  <rule ref="config/quality/pmd/rulesets/design.xml">
+    <exclude name="EmptyMethodInAbstractClassShouldBeAbstract"/>
+    <exclude name="UseSingleton"/>
+    <exclude name="CloseResource"/>
+  </rule>
+  <rule ref="config/quality/pmd/rulesets/finalizers.xml"/>
+  <rule ref="config/quality/pmd/rulesets/imports.xml">
+    <exclude name="UnusedImports"/>
+    <exclude name="DuplicateImports"/>
+  </rule>
+  <rule ref="config/quality/pmd/rulesets/junit.xml">
+    <exclude name="JUnitTestsShouldIncludeAssert"/>
+    <exclude name="TestClassWithoutTestCases"/>
+  </rule>
+  <rule ref="config/quality/pmd/rulesets/naming.xml">
+    <exclude name="ShortVariable"/>
+    <exclude name="LongVariable"/>
+    <exclude name="AbstractNaming"/>
+    <exclude name="BooleanGetMethodName"/>
+    <exclude name="AvoidFieldNameMatchingMethodName"/>
+  </rule>
+  <rule ref="config/quality/pmd/rulesets/optimizations.xml">
+    <exclude name="LocalVariableCouldBeFinal"/>
+    <exclude name="SimplifyStartsWith"/>
+    <exclude name="AvoidInstantiatingObjectsInLoops"/>
+    <exclude name="UseStringBufferForStringAppends"/>
+  </rule>
+  <rule ref="config/quality/pmd/rulesets/strictexception.xml">
+    <exclude name="AvoidCatchingGenericException"/>
+  </rule>
+  <rule ref="config/quality/pmd/rulesets/strings.xml">
+    <exclude name="AvoidDuplicateLiterals"/>
+  </rule>
+  <rule ref="config/quality/pmd/rulesets/sunsecure.xml"/>
+  <rule ref="config/quality/pmd/rulesets/unusedcode.xml"/>
+  <rule ref="config/quality/pmd/rulesets/logging-java.xml"/>
+
+</ruleset>

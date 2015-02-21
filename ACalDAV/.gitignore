@@ -1,0 +1,4 @@
+proguard/
+*.iml
+market
+build.gradle

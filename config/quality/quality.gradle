@@ -1,0 +1,62 @@
+apply plugin: 'checkstyle'
+apply plugin: 'pmd'
+apply plugin: 'findbugs'
+
+check.dependsOn 'compileDebugJava', 'checkstyle', 'findbugs', 'pmd'
+
+android {
+    lintOptions {
+        abortOnError false
+        xmlOutput file("$buildDir/reports/lint/lint-report.xml")
+        htmlOutput file("$buildDir/reports/lint/lint-report.html")
+    }
+}
+
+checkstyle {
+    toolVersion = "5.7"
+}
+
+task checkstyle(type: Checkstyle) {
+    configFile file('../config/quality/checkstyle/checkstyle.xml')
+    source 'src/org'
+    include '**/*.java'
+    exclude '**/gen/**'
+    ignoreFailures = true
+    classpath = files()
+
+    doLast {
+        ant.xslt(in: "$buildDir/reports/checkstyle/checkstyle.xml",
+                style:"../config/quality/checkstyle/checkstyle.xsl",
+                out:"$buildDir/reports/checkstyle/checkstyle.html"
+        )
+    }
+}
+
+findbugs {
+    toolVersion = "3.0.0"
+}
+
+task findbugs(type: FindBugs) {
+    excludeFilter file('../config/quality/findbugs/findbugs-filter-exclude.xml')
+    ignoreFailures = true
+    classes = fileTree('build/intermediates/classes/debug/org')
+    source = fileTree('src/org')
+    effort = 'max'
+
+    classpath = files()
+
+    reports {
+        xml.enabled = false
+        html.enabled = true
+    }
+}
+pmd { toolVersion = '5.1.1' }
+
+task pmd(type: Pmd) {
+    ignoreFailures = true
+    File ruleSetsDir = file('../config/quality/pmd/rulesets')
+    ruleSetFiles = files(ruleSetsDir.listFiles())
+//    ruleSetFiles = files('../config/quality/pmd/pmd-configuration.xml')
+//    ruleSets = ["basic", "braces", "strings"]
+    source = fileTree("src/org")
+}
